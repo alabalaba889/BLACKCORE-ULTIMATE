@@ -12,13 +12,15 @@ Projeto portátil para Windows, construído por etapas. O aplicativo original fo
 - Controles locais de movimento e clique do mouse por coordenadas, com confirmação visível antes de cada ação.
 - Camada de autorização explícita para ações sensíveis.
 - Helpers de backup e restauração que exigem confirmação explícita ao restaurar.
-- Validador de manifesto de plugins (valida metadados e permissões; não executa plugins).
+- Backups versionados com hash SHA-256, restauração atômica e bloqueio quando a integridade não confere.
+- Registro local de plugins com concessão individual de permissões; ativação é apenas metadado e não executa código.
+- Primitivas de pareamento remoto com código de uso único, expiração, permissões mínimas, revogação, rate limit e auditoria sem tokens.
 - Testes unitários e workflow de CI para Windows e Linux.
 
 ## Ainda não implementado
-- Controle remoto real de mouse/teclado pelo Android ou pela rede.
-- Pareamento e controle Android pela rede local ou pela internet.
-- Canal remoto seguro e gestão de sessões/dispositivos.
+- App Android, transmissão real de tela e execução dos comandos remotos.
+- Transporte de rede autenticado e criptografado para o protocolo de pareamento (as primitivas atuais não abrem portas nem criam servidor).
+- Configuração guiada de VPN privada para acesso fora de casa e gestão de dispositivos integrada à interface.
 - Métricas reais de GPU e gráficos históricos integrados na interface.
 - Integração com IA local/online e gestão de credenciais.
 - Roblox Studio Lab funcional para inspecionar, testar e aplicar patches.
@@ -55,3 +57,14 @@ The provider layer is a library prototype and is not yet integrated into the gra
 
 ## Roblox Studio Lab prototype
 The Lab accepts a local project folder, reads .lua/.luau files only, reports heuristic findings, and can generate a diff preview. It does not execute project code or apply patches.
+
+## Etapa 6 — plugins e recuperação (protótipo implementado)
+- O registro de plugins exige aprovação explícita, concede apenas permissões solicitadas e mantém plugins desativados por padrão.
+- A ativação altera somente o estado do registro: plugins externos não são carregados nem executados.
+- Backups versionados registram SHA-256; restauração exige confirmação e valida o hash antes de substituir o destino atomicamente.
+- Ainda falta isolamento de processo/sandbox real, UI de gestão e testes em arquivos e ambientes reais do usuário.
+
+## Etapa 7 — sessões remotas (primitivas implementadas)
+- Código de pareamento de uso único, permissões mínimas, limitação de tentativas, expiração de sessão, revogação e auditoria sem registrar tokens.
+- O módulo é independente do transporte: não abre portas, não transmite tela e não controla dispositivos por conta própria.
+- Para controle real será necessário um app Android, um transporte criptografado autenticado (preferencialmente VPN privada), integração com a UI, testes de ameaça e validação em dispositivos. Não exponha uma porta de controle diretamente à internet.
