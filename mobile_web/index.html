@@ -40,6 +40,7 @@ async function connect(){
   el('message').textContent='Conectado. Somente leitura; nenhum comando foi executado.';el('message').className='good';el('state').textContent='CONECTADO';el('refresh').hidden=false;
  }catch(e){el('state').textContent='ERRO';el('message').textContent='Falha: '+e.message+'\nVerifique URL, token, certificado HTTPS e VPN/Wi-Fi.';el('message').className='bad';}
 }
+if(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')el('endpoint').value=location.origin;
 el('connect').addEventListener('click',connect);el('refresh').addEventListener('click',connect);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script></main></body></html>
