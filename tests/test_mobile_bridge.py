@@ -51,6 +51,18 @@ class MobileBridgeSafetyTests(unittest.TestCase):
                     self.assertIn("X-Frame-Options", response.headers)
                 self.assertIn("X-Content-Type-Options", response.headers)
 
+    def test_mobile_panel_exposes_consent_gated_controls_without_inline_styles(self):
+        root = Path(__file__).resolve().parents[1]
+        html = (root / "mobile_web" / "index.html").read_text(encoding="utf-8")
+        for control_id in ("remoteConsent", "screenRefresh", "mouseMove", "mouseClick", "remoteType", "remotePress"):
+            self.assertIn('id="' + control_id + '"', html)
+        self.assertNotIn(" style=", html)
+        self.assertIn("autorizo", html.lower())
+        js = (root / "mobile_web" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('"/api/control"', js)
+        self.assertIn('"X-Blackcore-Confirm":"YES"', js)
+        self.assertIn('"/api/screen.jpg"', js)
+
     def test_status_requires_bearer_token_and_is_read_only(self):
         with self.assertRaises(HTTPError) as raised:
             urlopen(self.base + "/api/status", timeout=3)
