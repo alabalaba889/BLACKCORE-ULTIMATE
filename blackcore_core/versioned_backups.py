@@ -20,8 +20,11 @@ def _sha256(path: Path) -> str:
 
 
 def create_versioned_backup(source: str, backup_root: str) -> dict[str, str]:
-    src = Path(source).expanduser().resolve(strict=True)
-    if not src.is_file() or src.is_symlink():
+    raw_src = Path(source).expanduser()
+    if raw_src.is_symlink():
+        raise ValueError("A origem não pode ser um link simbólico.")
+    src = raw_src.resolve(strict=True)
+    if not src.is_file():
         raise ValueError("A origem precisa ser um arquivo regular, não um link.")
     root = Path(backup_root).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
@@ -42,14 +45,20 @@ def restore_versioned_backup(backup_path: str, destination: str, expected_sha256
                              *, confirmed: bool = False) -> Path:
     if not confirmed:
         raise PermissionError("Restauração bloqueada: é necessária confirmação explícita.")
-    src = Path(backup_path).expanduser().resolve(strict=True)
-    if not src.is_file() or src.is_symlink():
+    raw_src = Path(backup_path).expanduser()
+    if raw_src.is_symlink():
+        raise ValueError("O backup não pode ser um link simbólico.")
+    src = raw_src.resolve(strict=True)
+    if not src.is_file():
         raise ValueError("O backup precisa ser um arquivo regular.")
     actual = _sha256(src)
     if not isinstance(expected_sha256, str) or actual != expected_sha256:
         raise ValueError("Integridade do backup não confere; restauração cancelada.")
-    dst = Path(destination).expanduser().resolve()
-    if dst.exists() and (not dst.is_file() or dst.is_symlink()):
+    raw_dst = Path(destination).expanduser()
+    if raw_dst.is_symlink():
+        raise ValueError("O destino não pode ser um link simbólico.")
+    dst = raw_dst.resolve()
+    if dst.exists() and not dst.is_file():
         raise ValueError("O destino precisa ser um arquivo regular.")
     dst.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_name = tempfile.mkstemp(prefix=".restore-", suffix=".tmp", dir=str(dst.parent))
