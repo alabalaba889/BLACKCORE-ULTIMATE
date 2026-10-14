@@ -1,6 +1,8 @@
 import json
 import threading
 import unittest
+import xml.etree.ElementTree as ET
+from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -76,6 +78,24 @@ class MobileBridgeSafetyTests(unittest.TestCase):
         with urlopen(self.base + "/api/health", timeout=3) as response:
             data = json.loads(response.read())
         self.assertEqual(data, {"ok": True, "auth_required": True, "mode": "read_only"})
+
+    def test_android_network_config_requires_tls_and_allows_user_installed_ca(self):
+        root = Path(__file__).resolve().parents[1]
+        config_path = root / "android" / "app" / "src" / "main" / "res" / "xml" / "network_security_config.xml"
+        config = ET.parse(config_path).getroot()
+        base = config.find("base-config")
+        self.assertIsNotNone(base)
+        self.assertEqual(base.attrib.get("cleartextTrafficPermitted"), "false")
+        trusted = {item.attrib.get("src") for item in base.findall("./trust-anchors/certificates")}
+        self.assertEqual(trusted, {"system", "user"})
+
+        manifest_path = root / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
+        manifest = ET.parse(manifest_path).getroot()
+        android_ns = "{http://schemas.android.com/apk/res/android}"
+        application = manifest.find("application")
+        self.assertIsNotNone(application)
+        self.assertEqual(application.attrib.get(android_ns + "usesCleartextTraffic"), "false")
+        self.assertEqual(application.attrib.get(android_ns + "networkSecurityConfig"), "@xml/network_security_config")
 
 
 if __name__ == "__main__":
