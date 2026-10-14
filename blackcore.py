@@ -1,6 +1,8 @@
 import ctypes, os, platform, shutil, subprocess, time, tkinter as tk
 from tkinter import messagebox
 
+from blackcore_core.monitor import sparkline
+
 BG, PANEL, GREEN, MUTED = "#080d0b", "#101a15", "#39ff88", "#8eb9a0"
 
 class MEMORYSTATUSEX(ctypes.Structure):
@@ -32,6 +34,7 @@ class App:
     def __init__(self, root):
         self.root=root; root.title("BLACKCORE // LOCAL CONTROL"); root.geometry("900x680")
         root.minsize(760,580); root.configure(bg=BG); self.prev=cpu_sample(); self.effect=None
+        self.cpu_history=[]; self.ram_history=[]; self.disk_history=[]
         self.build(); self.log("BLACKCORE iniciado em modo local.")
         self.log("Sem conexão remota; nenhuma ação ocorre sem clique.")
         self.refresh(); root.protocol("WM_DELETE_WINDOW",self.close)
@@ -44,9 +47,12 @@ class App:
         self.cpu=tk.StringVar(value="CPU: lendo..."); self.ram=tk.StringVar(value="RAM: lendo...")
         self.disk=tk.StringVar(value="DISCO: lendo..."); self.net=tk.StringVar(value="REDE: opcional")
         self.os=tk.StringVar(value=f"SISTEMA: {platform.system()} {platform.release()} • {platform.machine()}")
+        self.history=tk.StringVar(value="HISTÓRICO 60s | CPU: — | RAM: — | DISCO: —")
         for v in (self.cpu,self.ram,self.disk,self.net,self.os):
             f=tk.Frame(stats,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); f.pack(fill="x",pady=3)
             tk.Label(f,textvariable=v,font=("Consolas",11),fg=GREEN,bg=PANEL,anchor="w",padx=12,pady=9).pack(fill="x")
+        hf=tk.Frame(stats,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); hf.pack(fill="x",pady=3)
+        tk.Label(hf,textvariable=self.history,font=("Consolas",9),fg=MUTED,bg=PANEL,anchor="w",padx=12,pady=7).pack(fill="x")
         body=tk.Frame(self.root,bg=BG); body.pack(fill="both",expand=True,padx=20,pady=8)
         left=tk.Frame(body,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); left.pack(side="left",fill="both",expand=True,padx=(0,7))
         right=tk.Frame(body,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); right.pack(side="right",fill="both",expand=True,padx=(7,0))
@@ -61,6 +67,10 @@ class App:
         self.mouse_y.insert(0,"400"); self.mouse_y.pack(side="left",fill="x",expand=True,padx=(4,0))
         self.btn(left,"MOVER MOUSE (CONFIRMAR)",self.move_mouse)
         self.btn(left,"CLICAR NA POSIÇÃO (CONFIRMAR)",self.click_mouse,True)
+        tk.Label(left,text="Teclas permitidas (ação sempre confirmada):",font=("Consolas",9),fg=MUTED,bg=PANEL).pack(anchor="w",padx=14,pady=(8,3))
+        self.key_choice=tk.StringVar(value="ENTER")
+        tk.OptionMenu(left,self.key_choice,"ENTER","ESC","TAB","SPACE","CTRL+C","CTRL+V","CTRL+Z","CTRL+S","ALT+TAB").pack(fill="x",padx=14,pady=3)
+        self.btn(left,"ENVIAR TECLA / ATALHO (CONFIRMAR)",self.press_key)
         tk.Label(left,text="Texto para digitar no aplicativo ativo:",font=("Consolas",9),fg=MUTED,bg=PANEL).pack(anchor="w",padx=14,pady=(14,4))
         self.entry=tk.Entry(left,font=("Consolas",11),bg="#07100b",fg=GREEN,insertbackground=GREEN,relief="flat"); self.entry.pack(fill="x",padx=14,pady=4)
         self.btn(left,"DIGITAR TEXTO (CONFIRMAR)",self.type_text)
@@ -85,6 +95,10 @@ class App:
             r=ram_stats(); self.ram.set("RAM: "+(f"{r[0]}% usada • {r[1]:.1f}/{r[2]:.1f} GB" if r else "indisponível"))
             d=shutil.disk_usage(os.path.abspath(os.sep)); dp=round(d.used*100/d.total,1) if d.total else 0
             self.disk.set(f"DISCO: {dp}% usado • {d.used/(1024**3):.1f}/{d.total/(1024**3):.1f} GB")
+            self.cpu_history.append(n); self.cpu_history=self.cpu_history[-40:]
+            self.ram_history.append(r[0] if r else None); self.ram_history=self.ram_history[-40:]
+            self.disk_history.append(dp); self.disk_history=self.disk_history[-40:]
+            self.history.set("HISTÓRICO ~60s | CPU "+sparkline(self.cpu_history)+" | RAM "+sparkline(self.ram_history)+" | DISCO "+sparkline(self.disk_history))
             try:
                 import psutil
                 nc=psutil.net_io_counters()
@@ -141,6 +155,33 @@ class App:
             self.log(f"Clique esquerdo executado em X={x}, Y={y}.")
         except Exception as e:
             messagebox.showerror("BLACKCORE", "Não foi possível clicar: " + str(e))
+    def press_key(self):
+        key = self.key_choice.get()
+        allowed = {
+            "ENTER": [0x0D], "ESC": [0x1B], "TAB": [0x09], "SPACE": [0x20],
+            "CTRL+C": [0x11, 0x43], "CTRL+V": [0x11, 0x56],
+            "CTRL+Z": [0x11, 0x5A], "CTRL+S": [0x11, 0x53],
+            "ALT+TAB": [0x12, 0x09],
+        }
+        codes = allowed.get(key)
+        if not codes:
+            messagebox.showerror("BLACKCORE", "Tecla não permitida.")
+            return
+        if not messagebox.askyesno("Confirmar teclado", f"Enviar {key} para a janela atualmente ativa?\\nConfirme que o destino está correto."):
+            self.log(f"Atalho {key} cancelado.")
+            return
+        try:
+            u = ctypes.windll.user32
+            modifier = codes[0] if len(codes) == 2 else None
+            target = codes[-1]
+            if modifier is not None: u.keybd_event(modifier, 0, 0, 0)
+            u.keybd_event(target, 0, 0, 0)
+            u.keybd_event(target, 0, 0x0002, 0)
+            if modifier is not None: u.keybd_event(modifier, 0, 0x0002, 0)
+            self.log(f"Tecla/atalho {key} enviado com confirmação.")
+        except Exception as e:
+            messagebox.showerror("BLACKCORE", "Não foi possível enviar a tecla: " + str(e))
+
     def type_text(self):
         s=self.entry.get()
         if not s: messagebox.showinfo("BLACKCORE","Escreve o texto primeiro."); return
