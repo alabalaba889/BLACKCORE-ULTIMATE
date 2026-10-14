@@ -9,13 +9,16 @@ This roadmap is a plan, not a claim that every capability already exists.
 
 ## Phase 2 — desktop controls (partially implemented)
 - Implemented: local mouse movement and left-click at validated screen coordinates, each with visible confirmation.
+- Implemented: allowlisted keyboard actions (Enter, Esc, Tab, Space, Ctrl+C/V/Z/S, Alt+Tab), with confirmation for each action.
 - Implemented: disk usage in the UI and optional cumulative network counters when `psutil` is installed.
-- Still to do: broader keyboard controls, task/process controls with allowlists, cancellation, and more comprehensive testing.
+- Still to do: task/process controls with allowlists, cancellation, and real-device testing of mouse/keyboard behavior.
 - Administrative operations remain out of scope unless explicitly opted into; never elevate privileges silently.
 
-## Phase 3 — monitoring
-- Add historical charts for CPU/RAM/disk/network.
-- Add GPU/game metrics through a selected, documented provider; show “unavailable” when unsupported.
+## Phase 3 — monitoring (partially implemented)
+- Implemented: compact in-interface text sparklines for recent CPU/RAM/disk samples, with bounded history.
+- Implemented: disk usage and optional cumulative network counters when `psutil` is installed.
+- Still to do: full historical charts and network throughput history.
+- GPU/game metrics still require a selected, documented provider; show “unavailable” when unsupported.
 - Avoid promising universal GPU metrics without compatible hardware/drivers.
 
 ## Phase 4 — AI hybrid
@@ -39,6 +42,6 @@ This roadmap is a plan, not a claim that every capability already exists.
 - Do not ship a public internet listener or pretend that LAN-only code is internet-ready. Validate the threat model and setup before enabling this phase.
 
 ## Validation status
-- Unit tests are included and should run in GitHub Actions after this branch is pushed.
-- The assistant cannot claim tests passed until a workflow run or local test result confirms it.
+- Unit tests are included and run in GitHub Actions on Windows and Linux. Check the latest workflow result before treating a change as validated.
+- UI interaction and mouse/keyboard actions still require real-device testing on the user’s Windows PC.
 - Desktop UI, Android connectivity, GPU metrics, AI providers, and Roblox Studio integration still require implementation and real-device testing.
