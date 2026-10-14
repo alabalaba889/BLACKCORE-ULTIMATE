@@ -44,3 +44,14 @@ O workflow `.github/workflows/tests.yml` compila os módulos e executa testes un
 - Nenhum serviço de controle remoto deve ser exposto à internet sem autenticação, transporte seguro, expiração de sessão e revisão de segurança.
 - Ações que alterem arquivos ou configurações devem apresentar o alvo e pedir aprovação.
 - Não use a função de digitação em campos de senha, pagamentos ou comandos sensíveis.
+
+
+## Initial AI provider configuration
+The provider layer is a library prototype and is not yet integrated into the graphical chat UI.
+
+- Local Ollama is the default, using http://127.0.0.1:11434/api/chat unless BLACKCORE_AI_ENDPOINT is set.
+- For an OpenAI-compatible hosted API, set BLACKCORE_AI_PROVIDER=openai_compatible, BLACKCORE_AI_ENDPOINT to an HTTPS endpoint, BLACKCORE_AI_API_KEY in the environment, and optionally BLACKCORE_AI_MODEL.
+- Never put API keys in repository files, screenshots, or logs. The AI module returns text only and does not execute model output.
+
+## Roblox Studio Lab prototype
+The Lab accepts a local project folder, reads .lua/.luau files only, reports heuristic findings, and can generate a diff preview. It does not execute project code or apply patches.
