@@ -1,12 +1,12 @@
 # BLACKCORE ULTIMATE
 
-Aplicativo local para Windows com uma edição Python independente e uma nova base mobile em desenvolvimento. As funcionalidades abaixo são separadas por estágio; não confunda o painel mobile com controle remoto completo.
+BLACKCORE ULTIMATE combina uma aplicação local para Windows com uma base mobile Android e um painel web. Este README separa recursos implementados de capacidades futuras; uma tela não significa que o controle remoto correspondente exista.
 
 ## Edição Windows de arquivo único
 
 **BLACKCORE_ULTIMATE_ONEFILE.py** inclui:
 - Monitoramento de CPU/RAM/disco/rede/processos e telemetria opcional NVIDIA.
-- Chat de IA com Ollama local ou API compatível com OpenAI via HTTPS.
+- Chat de IA com Ollama local ou API compatível com OpenAI.
 - Roblox Studio Lab em modo somente leitura e prévia de diff.
 - Backup/restauração com SHA-256 e confirmação.
 - Validação de manifesto de plugins sem executar código externo.
@@ -14,54 +14,104 @@ Aplicativo local para Windows com uma edição Python independente e uma nova ba
 
 Requisitos: Python 3.10+ e Tkinter. Execute `python BLACKCORE_ULTIMATE_ONEFILE.py`. Testes: `python -m unittest discover -s tests -v`.
 
-## Mobile — implementação inicial
+## Mobile: o que foi implementado
 
-### Painel web instalável (PWA)
-O diretório `mobile_web/` contém uma interface responsiva que pode ser instalada pelo navegador compatível. Ela conecta ao bridge e lê CPU, memória e disco. O cache offline cobre somente a interface; dados do PC exigem conexão.
+### Painel web/PWA
+O diretório `mobile_web/` contém uma interface responsiva que pode ser instalada pelo navegador compatível. Inclui:
+1. validação de URL e HTTPS;
+2. validação mínima do token;
+3. token não persistido em armazenamento web;
+4. mostrar/ocultar token;
+5. medição de latência;
+6. timeout de requisição;
+7. atualização manual;
+8. atualização automática;
+9. seleção do intervalo de atualização;
+10. desconexão com limpeza do token;
+11. copiar resumo;
+12. exportar diagnóstico JSON;
+13. CPU;
+14. RAM usada/total;
+15. RAM disponível;
+16. disco usado/livre;
+17. totais de rede enviada/recebida;
+18. contadores de pacotes;
+19. tempo ligado do sistema;
+20. contagem de processos;
+21. núcleos lógicos;
+22. bateria quando o hardware fornece esse dado;
+23. tempo ligado do bridge;
+24. visualização de JSON bruto;
+25. layout adaptável a celular/tablet/desktop;
+26. mensagens de estado acessíveis;
+27. cache offline apenas para os arquivos da interface, nunca para a API;
+28. Content Security Policy sem scripts inline;
+29. política de cache `no-store` para telemetria;
+30. erros de conexão e autenticação mais claros.
 
-### Aplicativo Android (projeto fonte)
-O diretório `android/` contém um projeto Kotlin/Jetpack Compose com formulário de endereço HTTPS/token e consulta de telemetria. O cliente exige HTTPS e confia nos certificados aceitos pelo Android. O APK de debug só deve ser considerado gerado quando o job Android no GitHub Actions terminar com sucesso.
+As métricas opcionais aparecem como N/D quando o sistema ou a biblioteca `psutil` não as fornece.
 
-### Bridge de telemetria no PC
-O módulo `blackcore_core/mobile_bridge.py` fornece endpoints de leitura autenticados por bearer token:
-- `GET /api/health` — estado básico do serviço.
-- `GET /api/status` — métricas autenticadas.
-- Outros caminhos retornam 404; métodos POST/PUT/DELETE são recusados.
+### Aplicativo Android
+O diretório `android/` contém o projeto fonte Kotlin/Jetpack Compose. O app conecta por HTTPS, envia um token bearer em memória e exibe telemetria em modo somente leitura. A CI compila um APK de debug e publica o arquivo como artefato apenas se o job concluir com sucesso. APK de debug não é um pacote assinado para distribuição pública.
 
-Por segurança, o padrão é bind apenas em `127.0.0.1`. Um bind de rede (por exemplo, `0.0.0.0`) exige certificado TLS, chave e token de pelo menos 32 caracteres. Gere o token fora do repositório e guarde-o como segredo local `BLACKCORE_BRIDGE_TOKEN`. Para uma rede local, o certificado precisa ter o endereço usado pelo celular no SAN e ser confiável no dispositivo; um certificado inválido não deve ser contornado. Instale `psutil` opcionalmente para CPU/RAM.
+### Bridge no PC
+O módulo `blackcore_core/mobile_bridge.py` hospeda o painel e os endpoints na mesma origem:
+- `GET /api/health` — estado básico sem dados sensíveis.
+- `GET /api/status` e `GET /api/v1/status` — telemetria autenticada.
+- Caminhos desconhecidos retornam 404; métodos que alterariam dados são recusados.
+- Token mínimo de 32 caracteres, comparação de token em tempo constante e TLS 1.2+ obrigatório para bind fora do loopback.
+- Rotas de arquivos são allowlist, respostas têm cabeçalhos de segurança e a API não é armazenada no cache da PWA.
 
-Exemplo de execução local no Windows PowerShell:
+### Iniciar no PC
+É necessário que o bridge esteja executando no PC. No momento, ele usa Python; este repositório não consegue fazer o celular iniciar um processo arbitrário no Windows pela rede sem um serviço previamente ativo e autorizado.
+
+No PowerShell do PC:
 ```powershell
-$env:BLACKCORE_BRIDGE_TOKEN = "substitua-por-um-segredo-aleatorio-com-32-caracteres-ou-mais"
+$env:BLACKCORE_BRIDGE_TOKEN = "use-um-segredo-aleatorio-com-32-caracteres-ou-mais"
 python -m blackcore_core.mobile_bridge
 ```
 
-O modo padrão localhost serve para diagnóstico no próprio PC, não para conectar de outro aparelho. Para habilitar Wi-Fi local, configure TLS/certificado confiável e rode com `--host 0.0.0.0 --cert caminho\cert.pem --key caminho\key.pem`. Restrinja a porta no firewall. Para uso fora de casa, prefira uma VPN privada que torne o PC acessível apenas aos seus dispositivos; não encaminhe a porta do bridge diretamente para a internet. Nunca compartilhe o token.
+Esse exemplo usa o padrão `127.0.0.1`, acessível apenas no próprio PC. Para Wi-Fi, é necessário configurar um certificado TLS confiável para o endereço do PC, e executar com `--host 0.0.0.0 --cert caminho\cert.pem --key caminho\key.pem`. Restrinja a porta no firewall. Para acesso de fora de casa, prefira uma VPN privada; não encaminhe a porta do bridge diretamente para a internet. Não contorne avisos de certificado e nunca compartilhe o token.
+
+**Importante:** “sem instalador” é possível; “sem nada executando no PC” não é. Android, navegadores e Windows impedem que uma página do celular instale ou inicie silenciosamente uma GUI no PC. Para a conexão ser possível, precisa haver um agente/servidor já autorizado no PC (ou um recurso remoto nativo previamente habilitado). Esta versão ainda não tem controle de tela, mouse/teclado, execução de comandos, leitura remota de arquivos ou automação de jogos.
+
+## Revisão/refatoração do mobile
+Foram revisados e melhorados 15 pontos estruturais, sem apagar aleatoriamente recursos já existentes:
+1. CSS separado do HTML;
+2. JavaScript separado do HTML;
+3. remoção de JavaScript inline;
+4. remoção de estilos inline;
+5. CSP sem `unsafe-inline`;
+6. allowlist explícita de arquivos estáticos;
+7. bloqueio de traversal de caminhos;
+8. timeout e cancelamento de requisição;
+9. erros HTTP tratados por categoria;
+10. credenciais não persistidas no navegador;
+11. cache da API desabilitado;
+12. ciclo de cache PWA versionado;
+13. requisições mutáveis recusadas no bridge;
+14. TLS exigido para bind de rede;
+15. métricas opcionais degradam graciosamente quando não suportadas.
 
 ## Ainda não implementado
-
-- Controle de tela ao vivo, mouse/teclado remoto, automação de aplicativos ou execução remota de comandos.
-- Pareamento de dispositivos com expiração/revogação, gestão de vários usuários e auditoria de sessões.
-- Configuração automatizada de VPN e certificado, criação de APK assinado para distribuição e publicação na Play Store.
-- Sandbox de plugins, aplicação automática de patches, memória persistente de IA, instalador Windows assinado e rollback.
-- Validação manual em dispositivos Android e em PCs reais.
-
-O bridge atual é **somente leitura**; o painel web e o app Android não podem controlar o PC. A autenticação por token não substitui TLS, certificado confiável, firewall e VPN para uso remoto.
+- Controle ao vivo de tela, mouse e teclado; comandos remotos; automação de aplicativos/jogos.
+- Pareamento com expiração/revogação, múltiplos usuários e auditoria de sessões.
+- Configuração automatizada e segura de certificados/VPN.
+- Sandbox de plugins, aplicação automática de patches e memória persistente da IA.
+- Instalador Windows assinado, atualização/rollback automáticos e publicação na Play Store.
+- Testes manuais em dispositivos Android e PCs reais.
 
 ## IA
+Ollama local é a opção padrão do arquivo único. Para um provedor compatível com OpenAI, configure `BLACKCORE_AI_PROVIDER=openai_compatible`, `BLACKCORE_AI_ENDPOINT=https://...`, `BLACKCORE_AI_API_KEY` e opcionalmente `BLACKCORE_AI_MODEL`. Nunca grave chaves no código ou no GitHub.
 
-Ollama local é a opção padrão do arquivo único. Para provedor compatível com OpenAI, configure `BLACKCORE_AI_PROVIDER=openai_compatible`, `BLACKCORE_AI_ENDPOINT=https://...`, `BLACKCORE_AI_API_KEY` e opcionalmente `BLACKCORE_AI_MODEL`. Nunca grave chaves no código ou no GitHub.
+## CI, artefatos e branch
+A workflow mobile valida Python, testes unitários, sintaxe JavaScript e tenta compilar o APK Android. Se a compilação terminar com sucesso, o APK de debug fica disponível nos artefatos da execução. Confira [GitHub Actions](https://github.com/alabalaba889/BLACKCORE-ULTIMATE/actions).
 
-## Testes e GitHub
-
-A workflow existente testa Python em Windows/Linux. A workflow mobile testa arquivos web e tenta montar o APK Android de debug. Confira os resultados em [GitHub Actions](https://github.com/alabalaba889/BLACKCORE-ULTIMATE/actions). CI verde não substitui testes no seu computador/celular.
-
-Todo o trabalho está na branch `feature/ultimate-foundation`; isso não significa que foi mesclado em `main`.
+Todo o trabalho está em `feature/ultimate-foundation`; isso não significa que foi mesclado em `main`. CI verde não substitui testes no celular e no PC real.
 
 ## Segurança
-
-- A IA não executa texto que ela própria gerar.
+- A IA não executa o próprio texto gerado.
 - Plugins são metadados e não são executados.
 - Roblox Lab não altera scripts.
 - SHA-256 detecta alterações nos backups, mas não é assinatura digital.
-- Não use HTTP para telemetria fora do próprio computador e nunca exponha o bridge diretamente à internet.
+- Não exponha o bridge diretamente à internet.
