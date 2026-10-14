@@ -167,7 +167,7 @@
       el("remoteMessage").textContent = "Marque a confirmação para autorizar ações remotas nesta sessão.";
       return false;
     }
-    const base = el("endpoint").value.trim().replace(/\\/+$/, "");
+    const base = el("endpoint").value.trim().replace(/\/+$/, "");
     if (!base || el("token").value.trim().length < 32) {
       el("remoteMessage").textContent = "Conecte primeiro com endereço HTTPS e token válido.";
       return false;
@@ -182,7 +182,7 @@
     if (!remoteReady()) return;
     el("remoteMessage").textContent = "Enviando ação autorizada…";
     try {
-      const response = await fetch(el("endpoint").value.trim().replace(/\\/+$/, "") + "/api/control", {
+      const response = await fetch(el("endpoint").value.trim().replace(/\/+$/, "") + "/api/control", {
         method: "POST", cache: "no-store", credentials: "omit", redirect: "error",
         headers: {"Authorization":"Bearer " + el("token").value.trim(),"Content-Type":"application/json","X-Blackcore-Confirm":"YES"},
         body: JSON.stringify(payload)
@@ -198,7 +198,7 @@
     if (!remoteReady()) return;
     el("remoteMessage").textContent = "Solicitando captura da tela…";
     try {
-      const response = await fetch(el("endpoint").value.trim().replace(/\\/+$/, "") + "/api/screen.jpg", {
+      const response = await fetch(el("endpoint").value.trim().replace(/\/+$/, "") + "/api/screen.jpg", {
         headers: {"Authorization":"Bearer " + el("token").value.trim()}, cache:"no-store", credentials:"omit", redirect:"error"
       });
       if (!response.ok) {
