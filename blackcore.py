@@ -1,4 +1,4 @@
-import ctypes, os, platform, subprocess, time, tkinter as tk
+import ctypes, os, platform, shutil, subprocess, time, tkinter as tk
 from tkinter import messagebox
 
 BG, PANEL, GREEN, MUTED = "#080d0b", "#101a15", "#39ff88", "#8eb9a0"
@@ -42,8 +42,9 @@ class App:
         tk.Label(top,text="● LOCAL / READY",font=("Consolas",10,"bold"),fg=GREEN,bg=BG).pack(side="right",pady=(10,0))
         stats=tk.Frame(self.root,bg=BG); stats.pack(fill="x",padx=20,pady=6)
         self.cpu=tk.StringVar(value="CPU: lendo..."); self.ram=tk.StringVar(value="RAM: lendo...")
+        self.disk=tk.StringVar(value="DISCO: lendo..."); self.net=tk.StringVar(value="REDE: opcional")
         self.os=tk.StringVar(value=f"SISTEMA: {platform.system()} {platform.release()} • {platform.machine()}")
-        for v in (self.cpu,self.ram,self.os):
+        for v in (self.cpu,self.ram,self.disk,self.net,self.os):
             f=tk.Frame(stats,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); f.pack(fill="x",pady=3)
             tk.Label(f,textvariable=v,font=("Consolas",11),fg=GREEN,bg=PANEL,anchor="w",padx=12,pady=9).pack(fill="x")
         body=tk.Frame(self.root,bg=BG); body.pack(fill="both",expand=True,padx=20,pady=8)
@@ -52,6 +53,14 @@ class App:
         tk.Label(left,text="CONTROLE LOCAL",font=("Consolas",13,"bold"),fg=GREEN,bg=PANEL).pack(anchor="w",padx=14,pady=(14,5))
         tk.Label(left,text="Ações locais, acionadas manualmente.",font=("Consolas",9),fg=MUTED,bg=PANEL).pack(anchor="w",padx=14,pady=(0,9))
         self.btn(left,"ABRIR BLOCO DE NOTAS",self.notepad); self.btn(left,"ABRIR CALCULADORA",self.calc)
+        tk.Label(left,text="Controle do mouse (coordenadas da tela):",font=("Consolas",9),fg=MUTED,bg=PANEL).pack(anchor="w",padx=14,pady=(14,4))
+        coords=tk.Frame(left,bg=PANEL); coords.pack(fill="x",padx=14,pady=3)
+        self.mouse_x=tk.Entry(coords,width=8,font=("Consolas",10),bg="#07100b",fg=GREEN,insertbackground=GREEN,relief="flat")
+        self.mouse_x.insert(0,"500"); self.mouse_x.pack(side="left",fill="x",expand=True,padx=(0,4))
+        self.mouse_y=tk.Entry(coords,width=8,font=("Consolas",10),bg="#07100b",fg=GREEN,insertbackground=GREEN,relief="flat")
+        self.mouse_y.insert(0,"400"); self.mouse_y.pack(side="left",fill="x",expand=True,padx=(4,0))
+        self.btn(left,"MOVER MOUSE (CONFIRMAR)",self.move_mouse)
+        self.btn(left,"CLICAR NA POSIÇÃO (CONFIRMAR)",self.click_mouse,True)
         tk.Label(left,text="Texto para digitar no aplicativo ativo:",font=("Consolas",9),fg=MUTED,bg=PANEL).pack(anchor="w",padx=14,pady=(14,4))
         self.entry=tk.Entry(left,font=("Consolas",11),bg="#07100b",fg=GREEN,insertbackground=GREEN,relief="flat"); self.entry.pack(fill="x",padx=14,pady=4)
         self.btn(left,"DIGITAR TEXTO (CONFIRMAR)",self.type_text)
@@ -74,6 +83,14 @@ class App:
             cur=cpu_sample(); n=cpu_percent(self.prev,cur); self.prev=cur
             self.cpu.set("CPU: "+(f"{n}%" if n is not None else "indisponível"))
             r=ram_stats(); self.ram.set("RAM: "+(f"{r[0]}% usada • {r[1]:.1f}/{r[2]:.1f} GB" if r else "indisponível"))
+            d=shutil.disk_usage(os.path.abspath(os.sep)); dp=round(d.used*100/d.total,1) if d.total else 0
+            self.disk.set(f"DISCO: {dp}% usado • {d.used/(1024**3):.1f}/{d.total/(1024**3):.1f} GB")
+            try:
+                import psutil
+                nc=psutil.net_io_counters()
+                self.net.set(f"REDE acumulada: ↑ {nc.bytes_sent/(1024**2):.1f} MB • ↓ {nc.bytes_recv/(1024**2):.1f} MB")
+            except (ImportError, AttributeError, OSError):
+                self.net.set("REDE: instale psutil para ver contadores (opcional)")
         except Exception as e: self.log("Métrica indisponível: "+str(e))
         self.root.after(1500,self.refresh)
     def notepad(self):
@@ -82,6 +99,48 @@ class App:
     def calc(self):
         try: subprocess.Popen(["calc.exe"]); self.log("Calculadora aberta.")
         except Exception as e: messagebox.showerror("BLACKCORE",str(e))
+    def mouse_position(self):
+        try:
+            x, y = int(self.mouse_x.get()), int(self.mouse_y.get())
+        except ValueError:
+            messagebox.showerror("BLACKCORE", "Informe coordenadas X e Y como números inteiros.")
+            return None
+        try:
+            width, height = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+            if not (0 <= x < width and 0 <= y < height):
+                messagebox.showerror("BLACKCORE", f"Coordenadas fora da tela atual ({width} × {height}).")
+                return None
+        except Exception:
+            return None
+        return x, y
+    def move_mouse(self):
+        point = self.mouse_position()
+        if point is None: return
+        x, y = point
+        if not messagebox.askyesno("Confirmar movimento", f"Mover o cursor para X={x}, Y={y}?"):
+            self.log("Movimento do mouse cancelado."); return
+        try:
+            if not ctypes.windll.user32.SetCursorPos(x, y):
+                raise OSError("Windows não confirmou o movimento do cursor.")
+            self.log(f"Cursor movido para X={x}, Y={y}.")
+        except Exception as e:
+            messagebox.showerror("BLACKCORE", "Não foi possível mover o cursor: " + str(e))
+    def click_mouse(self):
+        point = self.mouse_position()
+        if point is None: return
+        x, y = point
+        if not messagebox.askyesno("Confirmar clique", f"AVISO: clicar com o botão esquerdo em X={x}, Y={y}. Confirma?"):
+            self.log("Clique do mouse cancelado."); return
+        try:
+            user32 = ctypes.windll.user32
+            if not user32.SetCursorPos(x, y):
+                raise OSError("Não foi possível posicionar o cursor.")
+            time.sleep(0.15)
+            user32.mouse_event(0x0002, 0, 0, 0, 0)
+            user32.mouse_event(0x0004, 0, 0, 0, 0)
+            self.log(f"Clique esquerdo executado em X={x}, Y={y}.")
+        except Exception as e:
+            messagebox.showerror("BLACKCORE", "Não foi possível clicar: " + str(e))
     def type_text(self):
         s=self.entry.get()
         if not s: messagebox.showinfo("BLACKCORE","Escreve o texto primeiro."); return
