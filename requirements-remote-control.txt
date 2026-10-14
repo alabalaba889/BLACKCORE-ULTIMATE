@@ -1,0 +1,3 @@
+# Optional Windows-only dependency for explicitly enabled LAN screen/mouse/keyboard control.
+# Install only if you intend to enable the opt-in remote-control feature.
+pyautogui>=0.9.54,<1.0
