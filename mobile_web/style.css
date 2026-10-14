@@ -11,3 +11,4 @@ button{background:var(--green);color:#06110a;border:0;border-radius:10px;padding
 @media(min-width:520px){.actions{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(min-width:820px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}main{padding-top:32px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+.remote-screen{width:100%;height:auto;border:1px solid var(--line);border-radius:10px;margin-top:10px;display:block}.remote-screen.hidden{display:none}
