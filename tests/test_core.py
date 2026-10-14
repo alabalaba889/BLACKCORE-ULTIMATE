@@ -3,13 +3,24 @@ import unittest
 from pathlib import Path
 from blackcore_core.action_guard import ActionRequest, authorize
 from blackcore_core.backups import create_backup, restore_backup
-from blackcore_core.monitor import disk_stats, format_bytes
+from blackcore_core.monitor import append_history, disk_stats, format_bytes, sparkline
 from blackcore_core.plugins import validate_manifest
 
 class CoreTests(unittest.TestCase):
     def test_format_bytes(self):
         self.assertEqual(format_bytes(1024), "1.0 KB")
         self.assertEqual(format_bytes(None), "indisponível")
+
+    def test_sparkline_handles_empty_and_missing_samples(self):
+        self.assertEqual(sparkline([]), "—")
+        self.assertEqual(sparkline([None, None]), "··")
+        self.assertEqual(len(sparkline([1, 2, 3], width=2)), 2)
+
+    def test_history_is_bounded_and_does_not_mutate_input(self):
+        original = [1, 2]
+        result = append_history(original, 3, limit=2)
+        self.assertEqual(original, [1, 2])
+        self.assertEqual(result, [2, 3])
 
     def test_disk_stats(self):
         result = disk_stats()
