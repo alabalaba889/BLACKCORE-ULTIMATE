@@ -39,3 +39,36 @@ def format_bytes(value: Optional[int]) -> str:
             return f"{amount:.1f} {unit}"
         amount /= 1024
     return f"{amount:.1f} TB"
+
+
+def sparkline(values: list, width: int = 20) -> str:
+    """Render recent numeric samples as a compact text chart; missing samples show a dot."""
+    if width < 1:
+        raise ValueError("width must be positive")
+    samples = list(values)[-width:]
+    if not samples:
+        return "—"
+    glyphs = "▁▂▃▄▅▆▇█"
+    numeric = [float(v) for v in samples if v is not None]
+    if not numeric:
+        return "·" * len(samples)
+    low, high = min(numeric), max(numeric)
+    out = []
+    for value in samples:
+        if value is None:
+            out.append("·")
+        elif high == low:
+            out.append("▄")
+        else:
+            index = int((float(value) - low) / (high - low) * (len(glyphs) - 1))
+            out.append(glyphs[index])
+    return "".join(out)
+
+
+def append_history(history: list, value, limit: int = 40) -> list:
+    """Return a bounded copy of history with one sample appended."""
+    if limit < 1:
+        raise ValueError("limit must be positive")
+    result = list(history)
+    result.append(value)
+    return result[-limit:]
