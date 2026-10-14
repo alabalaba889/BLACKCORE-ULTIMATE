@@ -31,7 +31,7 @@ This roadmap is a plan, not a claim that every capability already exists.
 - Back up files before changes and show diffs before applying them.
 - Use Roblox Studio's supported workflows; no exploit executor or game-cheat functionality.
 
-## Phase 6 — plugins and recovery (prototype implemented)
+## Phase 6 — plugins and recovery (prototype + initial GUI integrated)
 - Implemented: local plugin registry with explicit approval, per-plugin permission grants, disabled-by-default state, and no plugin execution.
 - Implemented: versioned file backups with SHA-256 verification, explicit restore confirmation, and atomic destination replacement.
 - Implemented: plugin manifest path validation against native and Windows absolute/traversal paths.
