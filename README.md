@@ -8,7 +8,7 @@ Projeto portátil para Windows, construído por etapas. O aplicativo original fo
 - Atalhos para abrir Bloco de Notas e Calculadora.
 - Digitação de texto no aplicativo ativo após confirmação e contagem de 3 segundos.
 - Simulações visuais reversíveis e log local.
-- Métricas de disco integradas à interface e contadores de rede opcionais (dependem de `psutil`).
+- Métricas de disco e velocidade de rede (opcional, depende de `psutil`) na interface; aba de desempenho no Workbench com lista de processos e telemetria NVIDIA opcional.
 - Controles locais de movimento e clique do mouse por coordenadas, com confirmação visível antes de cada ação.
 - Camada de autorização explícita para ações sensíveis.
 - Helpers de backup e restauração que exigem confirmação explícita ao restaurar.
@@ -21,7 +21,7 @@ Projeto portátil para Windows, construído por etapas. O aplicativo original fo
 - App Android, transmissão real de tela e execução dos comandos remotos.
 - Transporte de rede autenticado e criptografado para o protocolo de pareamento (as primitivas atuais não abrem portas nem criam servidor).
 - Configuração guiada de VPN privada para acesso fora de casa e gestão de dispositivos integrada à interface.
-- Métricas reais de GPU e gráficos históricos integrados na interface.
+- Gráficos históricos completos, métricas por processo de CPU e métricas específicas de jogos.
 - Janela Workbench integrada com chat de IA local/online por configuração de ambiente; a interface não executa respostas da IA.\n- O chat exige Ollama local em execução ou variáveis de ambiente configuradas para provedor compatível; ainda falta cofre de credenciais do Windows e assistente de configuração.
 - Roblox Studio Lab integrado para inspeção somente leitura de scripts .lua/.luau; mostra achados heurísticos e não executa nem aplica patches. A prévia de diff existe como função de biblioteca, mas a aplicação controlada ainda falta.
 - Sandbox real para plugins externos.
