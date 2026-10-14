@@ -19,6 +19,10 @@ try:
 except ImportError:
     pyautogui = None
 
+if pyautogui is not None:
+    pyautogui.FAILSAFE = True
+    pyautogui.PAUSE = 0.05
+
 try:
     import psutil
 except ImportError:
