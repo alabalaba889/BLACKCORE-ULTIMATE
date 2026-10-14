@@ -9,6 +9,7 @@ import os
 from typing import Iterable
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
 
 _ALLOWED_ROLES = {"system", "user", "assistant"}
 _MAX_MESSAGES = 40
@@ -56,9 +57,14 @@ class AIClient:
             self.model = self.model or "gpt-4o-mini"
         else:
             raise ValueError("BLACKCORE_AI_PROVIDER deve ser 'ollama' ou 'openai_compatible'.")
-        if not self.endpoint.startswith(("http://127.0.0.1", "http://localhost", "https://")):
+        parsed = urlsplit(self.endpoint)
+        if parsed.username or parsed.password or not parsed.hostname:
+            raise ValueError("Endpoint inválido.")
+        is_local_http = parsed.scheme == "http" and parsed.hostname.lower() in {"127.0.0.1", "localhost", "::1"}
+        is_secure_https = parsed.scheme == "https"
+        if not (is_local_http or is_secure_https):
             raise ValueError("Endpoint bloqueado: use localhost para IA local ou HTTPS para serviço remoto.")
-        if self.provider == "ollama" and not self.endpoint.startswith(("http://127.0.0.1", "http://localhost")):
+        if self.provider == "ollama" and not is_local_http:
             raise ValueError("Ollama só pode usar endpoint local nesta versão.")
         if not self.model or len(self.model) > 160:
             raise ValueError("Nome do modelo inválido.")
