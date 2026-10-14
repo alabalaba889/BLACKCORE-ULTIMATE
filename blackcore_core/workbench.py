@@ -289,7 +289,7 @@ class Workbench:
         lines.extend(["", "A leitura não encerra processos, não instala drivers e não altera configurações."])
         self.performance_view.configure(state="normal")
         self.performance_view.delete("1.0", "end")
-        self.performance_view.insert("end", "\\n".join(lines))
+        self.performance_view.insert("end", "\n".join(lines))
         self.performance_view.configure(state="disabled")
 
     def _poll_events(self):
