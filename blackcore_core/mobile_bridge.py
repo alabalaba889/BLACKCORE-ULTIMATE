@@ -37,7 +37,7 @@ STARTED_AT = time.time()
 LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
 
-def collect_status():
+def collect_status(remote_control_enabled=False):
     """Return a privacy-conscious, read-only snapshot; optional metrics degrade gracefully."""
     now = time.time()
     data = {
@@ -49,7 +49,7 @@ def collect_status():
         "cpu_count": os.cpu_count(),
         "capabilities": {
             "telemetry": True,
-            "remote_control": False,
+            "remote_control": bool(remote_control_enabled),
             "arbitrary_commands": False,
             "screen_streaming": False,
             "file_access": False,
@@ -193,7 +193,7 @@ def make_handler(token, remote_control=False):
             if not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], token):
                 self.send_json(401, {"error": "unauthorized"})
                 return
-            self.send_json(200, collect_status())
+            self.send_json(200, collect_status(remote_control_enabled=remote_control))
 
         def _read_only(self):
             self.send_json(405, {"error": "read_only_bridge", "message": "Remote actions are disabled unless explicitly enabled on the PC."})
