@@ -69,6 +69,24 @@ class MobileBridgeSafetyTests(unittest.TestCase):
                 urlopen(request, timeout=3)
             self.assertEqual(denied.exception.code, 405)
 
+    def test_remote_control_is_disabled_by_default(self):
+        request = Request(self.base + "/api/control", data=b'{"action":"key","key":"enter"}',
+                          headers={"Authorization": "Bearer " + self.token,
+                                   "X-Blackcore-Confirm": "YES",
+                                   "Content-Type": "application/json"}, method="POST")
+        with self.assertRaises(HTTPError) as denied:
+            urlopen(request, timeout=3)
+        self.assertEqual(denied.exception.code, 403)
+        request = Request(self.base + "/api/screen.jpg",
+                          headers={"Authorization": "Bearer " + self.token})
+        with self.assertRaises(HTTPError) as denied_screen:
+            urlopen(request, timeout=3)
+        self.assertEqual(denied_screen.exception.code, 403)
+
+    def test_remote_control_requires_tls_and_non_loopback(self):
+        with self.assertRaisesRegex(ValueError, "LAN-bound host and TLS"):
+            create_server("127.0.0.1", 0, self.token, remote_control=True)
+
     def test_unknown_path_does_not_serve_files(self):
         with self.assertRaises(HTTPError) as raised:
             urlopen(self.base + "/../../README.md", timeout=3)
