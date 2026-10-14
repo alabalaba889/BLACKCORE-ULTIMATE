@@ -1,0 +1,119 @@
+import ctypes, os, platform, subprocess, time, tkinter as tk
+from tkinter import messagebox
+
+BG, PANEL, GREEN, MUTED = "#080d0b", "#101a15", "#39ff88", "#8eb9a0"
+
+class MEMORYSTATUSEX(ctypes.Structure):
+    _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+      ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+      ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+      ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+      ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+
+class FILETIME(ctypes.Structure):
+    _fields_ = [("dwLowDateTime", ctypes.c_ulong), ("dwHighDateTime", ctypes.c_ulong)]
+
+def ftv(x): return (x.dwHighDateTime << 32) + x.dwLowDateTime
+def cpu_sample():
+    i,k,u=FILETIME(),FILETIME(),FILETIME()
+    if not ctypes.windll.kernel32.GetSystemTimes(ctypes.byref(i),ctypes.byref(k),ctypes.byref(u)): return None
+    return ftv(i),ftv(k),ftv(u)
+def cpu_percent(a,b):
+    if not a or not b: return None
+    idle=b[0]-a[0]; total=b[1]-a[1]+b[2]-a[2]
+    return max(0,min(100,round(100*(total-idle)/total))) if total else 0
+def ram_stats():
+    s=MEMORYSTATUSEX(); s.dwLength=ctypes.sizeof(s)
+    if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(s)): return None
+    total=s.ullTotalPhys/(1024**3)
+    return s.dwMemoryLoad,total*s.dwMemoryLoad/100,total
+
+class App:
+    def __init__(self, root):
+        self.root=root; root.title("BLACKCORE // LOCAL CONTROL"); root.geometry("900x680")
+        root.minsize(760,580); root.configure(bg=BG); self.prev=cpu_sample(); self.effect=None
+        self.build(); self.log("BLACKCORE iniciado em modo local.")
+        self.log("Sem conexão remota; nenhuma ação ocorre sem clique.")
+        self.refresh(); root.protocol("WM_DELETE_WINDOW",self.close)
+    def build(self):
+        top=tk.Frame(self.root,bg=BG); top.pack(fill="x",padx=20,pady=(18,8))
+        tk.Label(top,text="BLACKCORE",font=("Consolas",27,"bold"),fg=GREEN,bg=BG).pack(side="left")
+        tk.Label(top,text="// WINDOWS LOCAL CONTROL • v0.1",font=("Consolas",10),fg=MUTED,bg=BG).pack(side="left",padx=12,pady=(10,0))
+        tk.Label(top,text="● LOCAL / READY",font=("Consolas",10,"bold"),fg=GREEN,bg=BG).pack(side="right",pady=(10,0))
+        stats=tk.Frame(self.root,bg=BG); stats.pack(fill="x",padx=20,pady=6)
+        self.cpu=tk.StringVar(value="CPU: lendo..."); self.ram=tk.StringVar(value="RAM: lendo...")
+        self.os=tk.StringVar(value=f"SISTEMA: {platform.system()} {platform.release()} • {platform.machine()}")
+        for v in (self.cpu,self.ram,self.os):
+            f=tk.Frame(stats,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); f.pack(fill="x",pady=3)
+            tk.Label(f,textvariable=v,font=("Consolas",11),fg=GREEN,bg=PANEL,anchor="w",padx=12,pady=9).pack(fill="x")
+        body=tk.Frame(self.root,bg=BG); body.pack(fill="both",expand=True,padx=20,pady=8)
+        left=tk.Frame(body,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); left.pack(side="left",fill="both",expand=True,padx=(0,7))
+        right=tk.Frame(body,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); right.pack(side="right",fill="both",expand=True,padx=(7,0))
+        tk.Label(left,text="CONTROLE LOCAL",font=("Consolas",13,"bold"),fg=GREEN,bg=PANEL).pack(anchor="w",padx=14,pady=(14,5))
+        tk.Label(left,text="Ações locais, acionadas manualmente.",font=("Consolas",9),fg=MUTED,bg=PANEL).pack(anchor="w",padx=14,pady=(0,9))
+        self.btn(left,"ABRIR BLOCO DE NOTAS",self.notepad); self.btn(left,"ABRIR CALCULADORA",self.calc)
+        tk.Label(left,text="Texto para digitar no aplicativo ativo:",font=("Consolas",9),fg=MUTED,bg=PANEL).pack(anchor="w",padx=14,pady=(14,4))
+        self.entry=tk.Entry(left,font=("Consolas",11),bg="#07100b",fg=GREEN,insertbackground=GREEN,relief="flat"); self.entry.pack(fill="x",padx=14,pady=4)
+        self.btn(left,"DIGITAR TEXTO (CONFIRMAR)",self.type_text)
+        tk.Label(right,text="TROLL LAB // REVERSÍVEL",font=("Consolas",13,"bold"),fg=GREEN,bg=PANEL).pack(anchor="w",padx=14,pady=(14,5))
+        tk.Label(right,text="Simulações visuais. Não altera arquivos nem configurações.",font=("Consolas",9),fg=MUTED,bg=PANEL,wraplength=340,justify="left").pack(anchor="w",padx=14,pady=(0,9))
+        self.btn(right,"ABRIR TERMINAL FALSO",self.fake_terminal); self.btn(right,"ALERTA DE PEGADINHA",self.fake_alert,True); self.btn(right,"PARAR / FECHAR EFEITOS",self.stop)
+        lf=tk.Frame(self.root,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); lf.pack(fill="both",padx=20,pady=(4,16))
+        tk.Label(lf,text="EVENT LOG",font=("Consolas",10,"bold"),fg=GREEN,bg=PANEL).pack(anchor="w",padx=12,pady=(8,2))
+        self.logs=tk.Text(lf,height=5,bg="#050806",fg=MUTED,font=("Consolas",9),relief="flat",state="disabled"); self.logs.pack(fill="both",expand=True,padx=10,pady=(0,10))
+    def btn(self,p,t,cmd,red=False):
+        tk.Button(p,text=t,command=cmd,bg="#3a1b20" if red else "#153c28",fg="#ff9aa5" if red else GREEN,
+          activebackground="#60232c" if red else "#205b3b",activeforeground="white",font=("Consolas",10,"bold"),
+          relief="flat",padx=10,pady=9).pack(fill="x",padx=14,pady=4)
+    def log(self,msg):
+        if not hasattr(self,"logs"): return
+        self.logs.configure(state="normal"); self.logs.insert("end",time.strftime("[%H:%M:%S] ")+msg+"\n")
+        self.logs.see("end"); self.logs.configure(state="disabled")
+    def refresh(self):
+        try:
+            cur=cpu_sample(); n=cpu_percent(self.prev,cur); self.prev=cur
+            self.cpu.set("CPU: "+(f"{n}%" if n is not None else "indisponível"))
+            r=ram_stats(); self.ram.set("RAM: "+(f"{r[0]}% usada • {r[1]:.1f}/{r[2]:.1f} GB" if r else "indisponível"))
+        except Exception as e: self.log("Métrica indisponível: "+str(e))
+        self.root.after(1500,self.refresh)
+    def notepad(self):
+        try: subprocess.Popen(["notepad.exe"]); self.log("Bloco de Notas aberto.")
+        except Exception as e: messagebox.showerror("BLACKCORE",str(e))
+    def calc(self):
+        try: subprocess.Popen(["calc.exe"]); self.log("Calculadora aberta.")
+        except Exception as e: messagebox.showerror("BLACKCORE",str(e))
+    def type_text(self):
+        s=self.entry.get()
+        if not s: messagebox.showinfo("BLACKCORE","Escreve o texto primeiro."); return
+        if not messagebox.askyesno("Confirmar","Após confirmar, terás 3 segundos para selecionar o campo de destino. Digitar apenas o texto deste campo. Continuar?"): return
+        self.log("Digitação autorizada; tens 3 segundos para selecionar o campo.")
+        self.root.iconify(); self.root.after(3000,lambda:self.send_text(s))
+    def send_text(self,s):
+        try:
+            u=ctypes.windll.user32; up,uni=0x0002,0x0004
+            for ch in s:
+                u.keybd_event(0,ord(ch),uni,0); u.keybd_event(0,ord(ch),uni|up,0); time.sleep(.008)
+            self.root.deiconify(); self.root.lift(); self.log("Texto enviado; nenhuma tecla foi gravada.")
+        except Exception as e:
+            self.root.deiconify(); messagebox.showerror("BLACKCORE","Falha ao digitar: "+str(e))
+    def fake_terminal(self):
+        if self.effect and self.effect.winfo_exists(): self.effect.lift(); return
+        w=tk.Toplevel(self.root); self.effect=w; w.title("SYSTEM DIAGNOSTICS // DEMO"); w.geometry("620x340"); w.configure(bg="#020604")
+        w.protocol("WM_DELETE_WINDOW",self.stop)
+        tk.Label(w,text="BLACKCORE // SIMULAÇÃO VISUAL",font=("Consolas",13,"bold"),fg=GREEN,bg="#020604").pack(anchor="w",padx=14,pady=12)
+        t=tk.Text(w,bg="#020604",fg=GREEN,font=("Consolas",10),relief="flat"); t.pack(fill="both",expand=True,padx=12,pady=(0,12))
+        for line in ["[DEMO] Inicializando interface visual...","[DEMO] Verificando módulos locais...","[DEMO] Nenhum arquivo está sendo alterado.","[DEMO] Nenhum acesso remoto está ativo.","[DEMO] Isto é apenas uma brincadeira."]: t.insert("end",line+"\n")
+        t.configure(state="disabled"); self.log("Terminal falso aberto.")
+    def fake_alert(self):
+        messagebox.showinfo("Pegadinha do BLACKCORE","PEGADINHA! Só uma brincadeira.\nNenhuma falha foi detectada e nada foi alterado.")
+        self.log("Alerta de brincadeira exibido.")
+    def stop(self):
+        try:
+            if self.effect and self.effect.winfo_exists(): self.effect.destroy()
+        except Exception: pass
+        self.effect=None; self.log("Efeitos visuais encerrados.")
+    def close(self): self.stop(); self.root.destroy()
+
+if __name__=="__main__":
+    if os.name!="nt": raise SystemExit("BLACKCORE foi feito para Windows.")
+    root=tk.Tk(); App(root); root.mainloop()
