@@ -35,6 +35,22 @@ python -m blackcore_core.mobile_bridge --host 0.0.0.0 --port 8765 --cert .\certs
 
 Mantenha essa janela aberta. O token vale para esse processo; não o publique, não o envie em capturas de tela e não o coloque no Git. A porta só deve ser permitida no perfil **Private** do Firewall do Windows e, de preferência, limitada ao endereço/IP do seu telefone ou à sub-rede doméstica. Não crie encaminhamento de porta no roteador.
 
+## 3.1. Instalar a dependência opcional de controle remoto
+
+O painel e o bridge continuam em modo somente leitura por padrão. Se você decidir habilitar controle remoto no seu próprio PC Windows, abra um PowerShell na raiz do projeto e instale a dependência opcional:
+
+```powershell
+python -m pip install -r requirements-remote-control.txt
+```
+
+Habilite o controle explicitamente no processo do bridge, mantendo certificado e chave TLS:
+
+```powershell
+python -m blackcore_core.mobile_bridge --host 0.0.0.0 --port 8765 --cert .\\certs\\blackcore-lan.pem --key .\\certs\\blackcore-lan-key.pem --enable-remote-control
+```
+
+Isso permite captura estática da tela e ações limitadas de mouse/teclado/texto. Não é vídeo em tempo real. O bridge rejeita comandos arbitrários, limita texto e teclas, valida coordenadas e exige uma confirmação explícita enviada pelo painel. O recurso opera com as permissões da sessão Windows ativa; não o habilite em redes compartilhadas. Para desligar, pare o processo e reinicie sem `--enable-remote-control`.
+
 ## 4. Conectar o Android
 
 - Confirme que PC e telefone estão na mesma rede Wi-Fi (sem rede de convidados/isolamento de clientes).
@@ -45,6 +61,6 @@ Mantenha essa janela aberta. O token vale para esse processo; não o publique, n
 
 ## 5. Limites atuais e validação
 
-O bridge oferece `GET /api/health` e telemetria autenticada em `GET /api/status`. Ele recusa métodos que alteram dados. Esta configuração **não** adiciona controle remoto: streaming de tela, mouse/teclado e execução de comandos continuam desativados e não devem ser tratados como implementados.
+O bridge oferece `GET /api/health` e telemetria autenticada em `GET /api/status`. Ele recusa métodos que alteram dados. Sem a opção `--enable-remote-control`, captura de tela e mouse/teclado permanecem desativados. Não existe vídeo contínuo nem execução de comandos arbitrários.
 
 Antes de considerar pronto, verifique a execução da workflow **BLACKCORE mobile checks** no GitHub Actions, instale o APK de debug gerado por uma execução bem-sucedida e teste a conexão num PC e num Android reais. O APK de debug não é um pacote de distribuição pública assinado.
