@@ -52,6 +52,8 @@ O diretório `mobile_web/` contém uma interface responsiva que pode ser instala
 As métricas opcionais aparecem como N/D quando o sistema ou a biblioteca `psutil` não as fornece.
 
 ### Aplicativo Android
+Guia de configuração para Android na mesma rede Wi-Fi: [`ANDROID_WIFI_SETUP.md`](ANDROID_WIFI_SETUP.md). O guia cobre TLS local, instalação da CA no telefone, início do bridge e limites atuais.
+
 O diretório `android/` contém o projeto fonte Kotlin/Jetpack Compose. O app conecta por HTTPS, envia um token bearer em memória e exibe telemetria em modo somente leitura. A CI compila um APK de debug e publica o arquivo como artefato apenas se o job concluir com sucesso. APK de debug não é um pacote assinado para distribuição pública.
 
 ### Bridge no PC
