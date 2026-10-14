@@ -161,6 +161,80 @@
     a.href = url; a.download = "blackcore-status-" + new Date().toISOString().replace(/[:.]/g,"-") + ".json";
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   }
+  let remoteScreenUrl = null;
+  function remoteReady() {
+    if (!el("remoteConsent").checked) {
+      el("remoteMessage").textContent = "Marque a confirmação para autorizar ações remotas nesta sessão.";
+      return false;
+    }
+    const base = el("endpoint").value.trim().replace(/\\/+$/, "");
+    if (!base || el("token").value.trim().length < 32) {
+      el("remoteMessage").textContent = "Conecte primeiro com endereço HTTPS e token válido.";
+      return false;
+    }
+    if (!base.startsWith("https://")) {
+      el("remoteMessage").textContent = "O controle remoto exige HTTPS.";
+      return false;
+    }
+    return true;
+  }
+  async function remoteAction(payload) {
+    if (!remoteReady()) return;
+    el("remoteMessage").textContent = "Enviando ação autorizada…";
+    try {
+      const response = await fetch(el("endpoint").value.trim().replace(/\\/+$/, "") + "/api/control", {
+        method: "POST", cache: "no-store", credentials: "omit", redirect: "error",
+        headers: {"Authorization":"Bearer " + el("token").value.trim(),"Content-Type":"application/json","X-Blackcore-Confirm":"YES"},
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error === "remote_control_disabled" ? "Controle remoto não habilitado no bridge do PC." : "Ação recusada (" + response.status + "): " + (data.error || "erro"));
+      el("remoteMessage").textContent = "Ação executada: " + payload.action + ".";
+    } catch (error) {
+      el("remoteMessage").textContent = "Não foi possível executar: " + (error.message || "falha de conexão");
+    }
+  }
+  async function refreshRemoteScreen() {
+    if (!remoteReady()) return;
+    el("remoteMessage").textContent = "Solicitando captura da tela…";
+    try {
+      const response = await fetch(el("endpoint").value.trim().replace(/\\/+$/, "") + "/api/screen.jpg", {
+        headers: {"Authorization":"Bearer " + el("token").value.trim()}, cache:"no-store", credentials:"omit", redirect:"error"
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error === "remote_control_disabled" ? "Controle remoto não habilitado no bridge do PC." : "Captura recusada (" + response.status + ").");
+      }
+      const blob = await response.blob();
+      if (remoteScreenUrl) URL.revokeObjectURL(remoteScreenUrl);
+      remoteScreenUrl = URL.createObjectURL(blob);
+      el("remoteScreen").src = remoteScreenUrl;
+      el("remoteScreen").classList.remove("hidden");
+      el("remoteMessage").textContent = "Captura recebida. Imagem estática; não é vídeo ao vivo.";
+    } catch (error) {
+      el("remoteMessage").textContent = "Falha na captura: " + (error.message || "erro de conexão");
+    }
+  }
+  function readCoordinates() {
+    const x = Number(el("mouseX").value), y = Number(el("mouseY").value);
+    if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x > 10000 || y > 10000) {
+      el("remoteMessage").textContent = "Informe coordenadas inteiras válidas entre 0 e 10000.";
+      return null;
+    }
+    return {x,y};
+  }
+  el("screenRefresh").addEventListener("click", refreshRemoteScreen);
+  el("mouseMove").addEventListener("click", () => { const p=readCoordinates(); if(p) remoteAction({action:"move",...p}); });
+  el("mouseClick").addEventListener("click", () => { const p=readCoordinates(); if(p) remoteAction({action:"click",...p,button:"left"}); });
+  el("remoteType").addEventListener("click", () => {
+    const value=el("remoteText").value;
+    if (!value || value.length > 300) { el("remoteMessage").textContent = "Informe texto de 1 a 300 caracteres."; return; }
+    remoteAction({action:"type",text:value});
+  });
+  el("remotePress").addEventListener("click", () => remoteAction({action:"key",key:el("remoteKey").value}));
+  el("remoteConsent").addEventListener("change", () => {
+    if (!el("remoteConsent").checked) el("remoteMessage").textContent = "Controle remoto não autorizado nesta sessão.";
+  });
   el("connect").addEventListener("click", connect);
   el("refresh").addEventListener("click", connect);
   el("disconnect").addEventListener("click", disconnect);
