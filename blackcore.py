@@ -1,5 +1,8 @@
-import ctypes, os, platform, subprocess, time, tkinter as tk
+import ctypes, os, platform, shutil, subprocess, time, tkinter as tk
 from tkinter import messagebox
+
+from blackcore_core.monitor import sparkline, format_bytes
+from blackcore_core.performance import NetworkRateSampler
 
 BG, PANEL, GREEN, MUTED = "#080d0b", "#101a15", "#39ff88", "#8eb9a0"
 
@@ -32,6 +35,7 @@ class App:
     def __init__(self, root):
         self.root=root; root.title("BLACKCORE // LOCAL CONTROL"); root.geometry("900x680")
         root.minsize(760,580); root.configure(bg=BG); self.prev=cpu_sample(); self.effect=None
+        self.cpu_history=[]; self.ram_history=[]; self.disk_history=[]; self.network_sampler=NetworkRateSampler(); self.workbench=None
         self.build(); self.log("BLACKCORE iniciado em modo local.")
         self.log("Sem conexão remota; nenhuma ação ocorre sem clique.")
         self.refresh(); root.protocol("WM_DELETE_WINDOW",self.close)
@@ -42,22 +46,39 @@ class App:
         tk.Label(top,text="● LOCAL / READY",font=("Consolas",10,"bold"),fg=GREEN,bg=BG).pack(side="right",pady=(10,0))
         stats=tk.Frame(self.root,bg=BG); stats.pack(fill="x",padx=20,pady=6)
         self.cpu=tk.StringVar(value="CPU: lendo..."); self.ram=tk.StringVar(value="RAM: lendo...")
+        self.disk=tk.StringVar(value="DISCO: lendo..."); self.net=tk.StringVar(value="REDE: opcional")
         self.os=tk.StringVar(value=f"SISTEMA: {platform.system()} {platform.release()} • {platform.machine()}")
-        for v in (self.cpu,self.ram,self.os):
+        self.history=tk.StringVar(value="HISTÓRICO 60s | CPU: — | RAM: — | DISCO: —")
+        for v in (self.cpu,self.ram,self.disk,self.net,self.os):
             f=tk.Frame(stats,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); f.pack(fill="x",pady=3)
             tk.Label(f,textvariable=v,font=("Consolas",11),fg=GREEN,bg=PANEL,anchor="w",padx=12,pady=9).pack(fill="x")
+        hf=tk.Frame(stats,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); hf.pack(fill="x",pady=3)
+        tk.Label(hf,textvariable=self.history,font=("Consolas",9),fg=MUTED,bg=PANEL,anchor="w",padx=12,pady=7).pack(fill="x")
         body=tk.Frame(self.root,bg=BG); body.pack(fill="both",expand=True,padx=20,pady=8)
         left=tk.Frame(body,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); left.pack(side="left",fill="both",expand=True,padx=(0,7))
         right=tk.Frame(body,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); right.pack(side="right",fill="both",expand=True,padx=(7,0))
         tk.Label(left,text="CONTROLE LOCAL",font=("Consolas",13,"bold"),fg=GREEN,bg=PANEL).pack(anchor="w",padx=14,pady=(14,5))
         tk.Label(left,text="Ações locais, acionadas manualmente.",font=("Consolas",9),fg=MUTED,bg=PANEL).pack(anchor="w",padx=14,pady=(0,9))
         self.btn(left,"ABRIR BLOCO DE NOTAS",self.notepad); self.btn(left,"ABRIR CALCULADORA",self.calc)
+        self.btn(left,"ABRIR AI / ROBLOX WORKBENCH",self.open_workbench)
+        tk.Label(left,text="Controle do mouse (coordenadas da tela):",font=("Consolas",9),fg=MUTED,bg=PANEL).pack(anchor="w",padx=14,pady=(14,4))
+        coords=tk.Frame(left,bg=PANEL); coords.pack(fill="x",padx=14,pady=3)
+        self.mouse_x=tk.Entry(coords,width=8,font=("Consolas",10),bg="#07100b",fg=GREEN,insertbackground=GREEN,relief="flat")
+        self.mouse_x.insert(0,"500"); self.mouse_x.pack(side="left",fill="x",expand=True,padx=(0,4))
+        self.mouse_y=tk.Entry(coords,width=8,font=("Consolas",10),bg="#07100b",fg=GREEN,insertbackground=GREEN,relief="flat")
+        self.mouse_y.insert(0,"400"); self.mouse_y.pack(side="left",fill="x",expand=True,padx=(4,0))
+        self.btn(left,"MOVER MOUSE (CONFIRMAR)",self.move_mouse)
+        self.btn(left,"CLICAR NA POSIÇÃO (CONFIRMAR)",self.click_mouse,True)
         tk.Label(left,text="Texto para digitar no aplicativo ativo:",font=("Consolas",9),fg=MUTED,bg=PANEL).pack(anchor="w",padx=14,pady=(14,4))
         self.entry=tk.Entry(left,font=("Consolas",11),bg="#07100b",fg=GREEN,insertbackground=GREEN,relief="flat"); self.entry.pack(fill="x",padx=14,pady=4)
         self.btn(left,"DIGITAR TEXTO (CONFIRMAR)",self.type_text)
         tk.Label(right,text="TROLL LAB // REVERSÍVEL",font=("Consolas",13,"bold"),fg=GREEN,bg=PANEL).pack(anchor="w",padx=14,pady=(14,5))
         tk.Label(right,text="Simulações visuais. Não altera arquivos nem configurações.",font=("Consolas",9),fg=MUTED,bg=PANEL,wraplength=340,justify="left").pack(anchor="w",padx=14,pady=(0,9))
         self.btn(right,"ABRIR TERMINAL FALSO",self.fake_terminal); self.btn(right,"ALERTA DE PEGADINHA",self.fake_alert,True); self.btn(right,"PARAR / FECHAR EFEITOS",self.stop)
+        tk.Label(right,text="TECLADO LOCAL • ATALHOS PERMITIDOS",font=("Consolas",9),fg=MUTED,bg=PANEL).pack(anchor="w",padx=14,pady=(12,3))
+        self.key_choice=tk.StringVar(value="ENTER")
+        tk.OptionMenu(right,self.key_choice,"ENTER","ESC","TAB","SPACE","CTRL+C","CTRL+V","CTRL+Z","CTRL+S","ALT+TAB").pack(fill="x",padx=14,pady=3)
+        self.btn(right,"ENVIAR TECLA / ATALHO (CONFIRMAR)",self.press_key)
         lf=tk.Frame(self.root,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); lf.pack(fill="both",padx=20,pady=(4,16))
         tk.Label(lf,text="EVENT LOG",font=("Consolas",10,"bold"),fg=GREEN,bg=PANEL).pack(anchor="w",padx=12,pady=(8,2))
         self.logs=tk.Text(lf,height=5,bg="#050806",fg=MUTED,font=("Consolas",9),relief="flat",state="disabled"); self.logs.pack(fill="both",expand=True,padx=10,pady=(0,10))
@@ -74,6 +95,19 @@ class App:
             cur=cpu_sample(); n=cpu_percent(self.prev,cur); self.prev=cur
             self.cpu.set("CPU: "+(f"{n}%" if n is not None else "indisponível"))
             r=ram_stats(); self.ram.set("RAM: "+(f"{r[0]}% usada • {r[1]:.1f}/{r[2]:.1f} GB" if r else "indisponível"))
+            d=shutil.disk_usage(os.path.abspath(os.sep)); dp=round(d.used*100/d.total,1) if d.total else 0
+            self.disk.set(f"DISCO: {dp}% usado • {d.used/(1024**3):.1f}/{d.total/(1024**3):.1f} GB")
+            self.cpu_history.append(n); self.cpu_history=self.cpu_history[-40:]
+            self.ram_history.append(r[0] if r else None); self.ram_history=self.ram_history[-40:]
+            self.disk_history.append(dp); self.disk_history=self.disk_history[-40:]
+            self.history.set("HISTÓRICO ~60s | CPU "+sparkline(self.cpu_history)+" | RAM "+sparkline(self.ram_history)+" | DISCO "+sparkline(self.disk_history))
+            nr=self.network_sampler.sample()
+            if nr["available"] and nr["sent_bytes_per_sec"] is not None:
+                self.net.set("REDE: ↑ "+format_bytes(nr["sent_bytes_per_sec"])+"/s • ↓ "+format_bytes(nr["received_bytes_per_sec"])+"/s")
+            elif nr["available"]:
+                self.net.set("REDE: medindo velocidade…")
+            else:
+                self.net.set("REDE: instale psutil para medir velocidade (opcional)")
         except Exception as e: self.log("Métrica indisponível: "+str(e))
         self.root.after(1500,self.refresh)
     def notepad(self):
@@ -82,6 +116,75 @@ class App:
     def calc(self):
         try: subprocess.Popen(["calc.exe"]); self.log("Calculadora aberta.")
         except Exception as e: messagebox.showerror("BLACKCORE",str(e))
+    def mouse_position(self):
+        try:
+            x, y = int(self.mouse_x.get()), int(self.mouse_y.get())
+        except ValueError:
+            messagebox.showerror("BLACKCORE", "Informe coordenadas X e Y como números inteiros.")
+            return None
+        try:
+            width, height = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+            if not (0 <= x < width and 0 <= y < height):
+                messagebox.showerror("BLACKCORE", f"Coordenadas fora da tela atual ({width} × {height}).")
+                return None
+        except Exception:
+            return None
+        return x, y
+    def move_mouse(self):
+        point = self.mouse_position()
+        if point is None: return
+        x, y = point
+        if not messagebox.askyesno("Confirmar movimento", f"Mover o cursor para X={x}, Y={y}?"):
+            self.log("Movimento do mouse cancelado."); return
+        try:
+            if not ctypes.windll.user32.SetCursorPos(x, y):
+                raise OSError("Windows não confirmou o movimento do cursor.")
+            self.log(f"Cursor movido para X={x}, Y={y}.")
+        except Exception as e:
+            messagebox.showerror("BLACKCORE", "Não foi possível mover o cursor: " + str(e))
+    def click_mouse(self):
+        point = self.mouse_position()
+        if point is None: return
+        x, y = point
+        if not messagebox.askyesno("Confirmar clique", f"AVISO: clicar com o botão esquerdo em X={x}, Y={y}. Confirma?"):
+            self.log("Clique do mouse cancelado."); return
+        try:
+            user32 = ctypes.windll.user32
+            if not user32.SetCursorPos(x, y):
+                raise OSError("Não foi possível posicionar o cursor.")
+            time.sleep(0.15)
+            user32.mouse_event(0x0002, 0, 0, 0, 0)
+            user32.mouse_event(0x0004, 0, 0, 0, 0)
+            self.log(f"Clique esquerdo executado em X={x}, Y={y}.")
+        except Exception as e:
+            messagebox.showerror("BLACKCORE", "Não foi possível clicar: " + str(e))
+    def press_key(self):
+        key = self.key_choice.get()
+        allowed = {
+            "ENTER": [0x0D], "ESC": [0x1B], "TAB": [0x09], "SPACE": [0x20],
+            "CTRL+C": [0x11, 0x43], "CTRL+V": [0x11, 0x56],
+            "CTRL+Z": [0x11, 0x5A], "CTRL+S": [0x11, 0x53],
+            "ALT+TAB": [0x12, 0x09],
+        }
+        codes = allowed.get(key)
+        if not codes:
+            messagebox.showerror("BLACKCORE", "Tecla não permitida.")
+            return
+        if not messagebox.askyesno("Confirmar teclado", f"Enviar {key} para a janela atualmente ativa?\\nConfirme que o destino está correto."):
+            self.log(f"Atalho {key} cancelado.")
+            return
+        try:
+            u = ctypes.windll.user32
+            modifier = codes[0] if len(codes) == 2 else None
+            target = codes[-1]
+            if modifier is not None: u.keybd_event(modifier, 0, 0, 0)
+            u.keybd_event(target, 0, 0, 0)
+            u.keybd_event(target, 0, 0x0002, 0)
+            if modifier is not None: u.keybd_event(modifier, 0, 0x0002, 0)
+            self.log(f"Tecla/atalho {key} enviado com confirmação.")
+        except Exception as e:
+            messagebox.showerror("BLACKCORE", "Não foi possível enviar a tecla: " + str(e))
+
     def type_text(self):
         s=self.entry.get()
         if not s: messagebox.showinfo("BLACKCORE","Escreve o texto primeiro."); return

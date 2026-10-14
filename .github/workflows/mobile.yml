@@ -1,0 +1,48 @@
+name: BLACKCORE mobile checks
+on:
+  push:
+  pull_request:
+jobs:
+  web-and-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Compile Python
+        run: python -m compileall -q blackcore.py BLACKCORE_ULTIMATE_ONEFILE.py blackcore_core tests
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Validate mobile JavaScript
+        run: node --check mobile_web/app.js
+      - name: Check mobile web files
+        run: |
+          test -s mobile_web/index.html
+          test -s mobile_web/style.css
+          test -s mobile_web/app.js
+          test -s mobile_web/manifest.webmanifest
+          test -s mobile_web/sw.js
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Assemble debug APK
+        working-directory: android
+        run: gradle assembleDebug
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: blackcore-mobile-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

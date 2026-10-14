@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07100c">
+<meta name="description" content="Painel mobile local do BLACKCORE ULTIMATE">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+<title>BLACKCORE // Mobile</title>
+<script src="app.js" defer></script>
+</head>
+<body><main>
+<header>
+ <div><h1>BLACKCORE</h1><small>ULTIMATE // MOBILE TELEMETRY</small></div>
+ <span class="pill" id="state" aria-live="polite">DESCONECTADO</span>
+</header>
+<section>
+ <h2>Conectar ao PC</h2>
+ <p class="notice">Este painel precisa de um bridge rodando no PC. Ele não instala nada remotamente nem executa comandos. Use HTTPS em Wi-Fi/VPN; nunca exponha a porta diretamente à internet.</p>
+ <label for="endpoint">Endereço base do bridge</label>
+ <input id="endpoint" inputmode="url" autocomplete="url" placeholder="https://192.168.1.20:8765">
+ <label for="token">Token de acesso (32+ caracteres)</label>
+ <input id="token" type="password" autocomplete="off" placeholder="Cole o token local">
+ <div class="inline" class="inline-spaced"><button class="secondary" id="toggleToken" type="button">Mostrar token</button><small>Não é salvo no navegador.</small></div>
+ <div class="actions">
+  <button id="connect" type="button">Conectar e ler status</button>
+  <button class="secondary" id="refresh" type="button" class="secondary hidden">Atualizar agora</button>
+  <button class="secondary hidden" id="disconnect" type="button">Desconectar e apagar token</button>
+  <button class="secondary hidden" id="copy" type="button">Copiar resumo</button>
+  <button class="secondary hidden" id="export" type="button">Exportar JSON</button>
+ </div>
+ <p id="message" role="status" aria-live="polite">Aguardando conexão. O painel começa em modo somente leitura.</p>
+ <div id="autoRefreshRow" class="inline hidden">
+  <input id="autoRefresh" type="checkbox">
+  <label for="autoRefresh">Atualização automática</label>
+  <label for="interval">Intervalo</label>
+  <select id="interval" aria-label="Intervalo de atualização">
+   <option value="5000">5 s</option><option value="15000" selected>15 s</option><option value="30000">30 s</option><option value="60000">60 s</option>
+  </select>
+ </div>
+</section>
+<section>
+ <h2>Telemetria do PC</h2>
+ <div class="grid">
+  <div class="metric"><span>CPU</span><b id="cpu">—</b></div>
+  <div class="metric"><span>RAM usada</span><b id="ram">—</b><small id="ramDetail"></small></div>
+  <div class="metric"><span>Disco usado</span><b id="disk">—</b><small id="diskDetail"></small></div>
+  <div class="metric"><span>Espaço livre</span><b id="freeDisk">—</b></div>
+  <div class="metric"><span>RAM disponível</span><b id="ramAvailable">—</b></div>
+  <div class="metric"><span>Rede enviada (total)</span><b id="networkSent">—</b></div>
+  <div class="metric"><span>Rede recebida (total)</span><b id="networkReceived">—</b></div>
+  <div class="metric"><span>Pacotes de rede</span><b id="packets">—</b></div>
+  <div class="metric"><span>Tempo ligado</span><b id="uptime">—</b></div>
+  <div class="metric"><span>Processos</span><b id="processes">—</b></div>
+  <div class="metric"><span>Núcleos lógicos</span><b id="cores">—</b></div>
+  <div class="metric"><span>Bateria</span><b id="battery">—</b></div>
+  <div class="metric"><span>Bridge ligado</span><b id="bridgeUptime">—</b></div>
+ </div>
+ <p id="system" class="notice">Conecte ao bridge para carregar as métricas.</p>
+ <button class="secondary hidden" id="showSnapshot" type="button">Mostrar/ocultar dados brutos</button>
+ <div id="snapshotWrap" class="hidden"><pre id="snapshot" tabindex="0"></pre></div>
+</section>
+<section>
+ <h2>Controle remoto (opcional)</h2>
+ <p class="notice">O controle remoto só funciona se for habilitado explicitamente no bridge do Windows com HTTPS e se a dependência pyautogui estiver instalada. Ative apenas em uma rede privada confiável. Cada ação exige a confirmação abaixo. Não use em telas de pagamento, senhas ou conteúdo sensível.</p>
+ <div class="inline"><input id="remoteConsent" type="checkbox"><label for="remoteConsent">Entendo e autorizo controlar este PC por esta sessão</label></div>
+ <div class="actions">
+  <button id="screenRefresh" class="secondary" type="button">Capturar tela do PC</button>
+ </div>
+ <img id="remoteScreen" class="remote-screen hidden" alt="Captura recente da tela do PC">
+ <p id="remoteMessage" class="notice" role="status" aria-live="polite">Desativado até ser habilitado no PC.</p>
+ <label for="mouseX">Coordenada X</label><input id="mouseX" type="number" min="0" max="10000" value="500" inputmode="numeric">
+ <label for="mouseY">Coordenada Y</label><input id="mouseY" type="number" min="0" max="10000" value="400" inputmode="numeric">
+ <div class="actions">
+  <button id="mouseMove" class="secondary" type="button">Mover mouse</button>
+  <button id="mouseClick" class="secondary" type="button">Clique esquerdo</button>
+ </div>
+ <label for="remoteText">Texto para digitar (máximo 300 caracteres)</label><input id="remoteText" maxlength="300" autocomplete="off" placeholder="Digite somente texto não sensível">
+ <button id="remoteType" class="secondary" type="button">Digitar texto</button>
+ <label for="remoteKey">Tecla/atalho permitido</label>
+ <select id="remoteKey"><option value="enter">Enter</option><option value="esc">Esc</option><option value="tab">Tab</option><option value="space">Espaço</option><option value="ctrl+c">Ctrl+C</option><option value="ctrl+v">Ctrl+V</option><option value="ctrl+z">Ctrl+Z</option><option value="ctrl+s">Ctrl+S</option><option value="alt+tab">Alt+Tab</option></select>
+ <button id="remotePress" class="secondary" type="button">Enviar tecla/atalho</button>
+</section>
+<section>
+ <h2>Limites de segurança</h2>
+ <p class="notice">Ativo nesta versão: leitura autenticada de telemetria, exportação de diagnóstico e atualização manual/automática. Desativado: controle de tela, mouse/teclado, execução de comandos, leitura de arquivos, execução de plugins e automação remota. O celular não consegue instalar ou iniciar um serviço no Windows sem uma ação prévia autorizada no PC.</p>
+</section>
+<p class="foot">BLACKCORE ULTIMATE • Mobile foundation • Não armazena tokens • Sem controle remoto nesta versão</p>
+</main></body></html>
