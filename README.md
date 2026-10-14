@@ -95,8 +95,16 @@ Foram revisados e melhorados 15 pontos estruturais, sem apagar aleatoriamente re
 14. TLS exigido para bind de rede;
 15. métricas opcionais degradam graciosamente quando não suportadas.
 
+## Controle remoto opcional — em desenvolvimento
+
+O bridge e as interfaces agora incluem uma primeira implementação **opt-in** para captura estática de tela e ações limitadas de mouse/clique/texto/teclas permitidas. O controle remoto permanece desligado por padrão. Para habilitar no Windows, instale a dependência opcional com `python -m pip install -r requirements-remote-control.txt` e inicie o bridge com `--enable-remote-control`, certificado TLS e chave privada. A tela é uma captura estática sob demanda, não vídeo contínuo. Esta implementação ainda requer validação por CI e testes reais antes de ser considerada pronta.
+
+O app Android inclui controles com confirmação explícita, captura de tela sob demanda e atualização automática de telemetria. Esses recursos de interface não provam que o bridge remoto está habilitado ou que a compilação passa; confira a workflow antes de instalar.
+
+Plano detalhado e ordem de trabalho: [ROADMAP_COMPLETION.md](ROADMAP_COMPLETION.md).
+
 ## Ainda não implementado
-- Controle ao vivo de tela, mouse e teclado; comandos remotos; automação de aplicativos/jogos.
+- Streaming contínuo de tela; controle remoto ainda precisa de validação de segurança, testes de integração e testes reais.
 - Pareamento com expiração/revogação, múltiplos usuários e auditoria de sessões.
 - Configuração automatizada e segura de certificados/VPN.
 - Sandbox de plugins, aplicação automática de patches e memória persistente da IA.
