@@ -7,10 +7,11 @@ This roadmap is a plan, not a claim that every capability already exists.
 - Add modular read-only metrics, explicit action authorization, local backup/restore helpers, plugin manifest validation, and unit tests.
 - CI compiles the Python modules and runs unit tests on Windows and Linux.
 
-## Phase 2 — desktop controls
-- Add mouse movement/click and keyboard actions only through visible, user-confirmed controls.
-- Add task/process controls with allowlists, clear warnings, and cancellation.
-- Keep administrative operations opt-in; never elevate privileges silently.
+## Phase 2 — desktop controls (partially implemented)
+- Implemented: local mouse movement and left-click at validated screen coordinates, each with visible confirmation.
+- Implemented: disk usage in the UI and optional cumulative network counters when `psutil` is installed.
+- Still to do: broader keyboard controls, task/process controls with allowlists, cancellation, and more comprehensive testing.
+- Administrative operations remain out of scope unless explicitly opted into; never elevate privileges silently.
 
 ## Phase 3 — monitoring
 - Add historical charts for CPU/RAM/disk/network.
