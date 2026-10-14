@@ -1,70 +1,74 @@
-# BLACKCORE ULTIMATE — foundation v0.2
+# BLACKCORE ULTIMATE
 
-Projeto portátil para Windows, construído por etapas. O aplicativo original foi preservado; esta branch adiciona uma base modular para monitoramento, confirmação de ações, backups, validação de plugins e testes automatizados.
+Aplicativo local para Windows e outros sistemas com Python/Tkinter. Este repositório mantém a aplicação modular existente e inclui uma edição independente de arquivo único: **BLACKCORE_ULTIMATE_ONEFILE.py**.
 
-## Já existe no repositório
-- Interface Tkinter escura estilo terminal hacker.
-- Monitoramento básico de CPU e RAM na interface original.
-- Atalhos para abrir Bloco de Notas e Calculadora.
-- Digitação de texto no aplicativo ativo após confirmação e contagem de 3 segundos.
-- Simulações visuais reversíveis e log local.
-- Métricas de disco e velocidade de rede (opcional, depende de `psutil`) na interface; aba de desempenho no Workbench com lista de processos e telemetria NVIDIA opcional.
-- Controles locais de movimento e clique do mouse por coordenadas, com confirmação visível antes de cada ação.
-- Camada de autorização explícita para ações sensíveis.
-- Helpers de backup e restauração que exigem confirmação explícita ao restaurar.
-- Backups versionados com hash SHA-256, restauração atômica e bloqueio quando a integridade não confere.
-- Registro local de plugins com concessão individual de permissões; ativação é apenas metadado e não executa código.
-- Primitivas de pareamento remoto com código de uso único, expiração, permissões mínimas, revogação, rate limit e auditoria sem tokens.
-- Testes unitários e workflow de CI para Windows e Linux.
+## Edição de arquivo único
 
-## Ainda não implementado
-- App Android, transmissão real de tela e execução dos comandos remotos.
-- Transporte de rede autenticado e criptografado para o protocolo de pareamento (as primitivas atuais não abrem portas nem criam servidor).
-- Configuração guiada de VPN privada para acesso fora de casa e gestão de dispositivos integrada à interface.
-- Gráficos históricos completos, métricas por processo de CPU e métricas específicas de jogos.
-- Janela Workbench integrada com chat de IA local/online por configuração de ambiente; a interface não executa respostas da IA.\n- O chat exige Ollama local em execução ou variáveis de ambiente configuradas para provedor compatível; ainda falta cofre de credenciais do Windows e assistente de configuração.
-- Roblox Studio Lab integrado para inspeção somente leitura de scripts .lua/.luau; mostra achados heurísticos e não executa nem aplica patches. A prévia de diff existe como função de biblioteca, mas a aplicação controlada ainda falta.
-- Sandbox real para plugins externos.
-- Workbench com criação e restauração confirmada de backup versionado, validação SHA-256 e cadastro de manifesto de plugin sem executar código. Ainda falta histórico visual completo, restauração de projeto inteiro e sandbox real.
-- Empacotamento portátil completo com runtime incluído.
+O arquivo **BLACKCORE_ULTIMATE_ONEFILE.py** reúne numa aplicação só:
+- Dashboard de leitura de CPU/RAM/disco/rede e processos, usando psutil quando disponível.
+- Telemetria opcional de GPU NVIDIA via nvidia-smi, se o utilitário já estiver instalado.
+- Chat de IA com Ollama local ou API compatível com OpenAI via HTTPS, em uma thread separada para não congelar a interface.
+- Roblox Studio Lab para leitura heurística de scripts .lua e .luau; não executa nem altera scripts.
+- Prévia de diff textual; não aplica patches.
+- Backup e restauração de arquivos com SHA-256 e confirmação explícita.
+- Validação de manifesto de plugin. Nenhum código de plugin é importado ou executado.
+- Abertura de aplicativos numa pequena lista permitida, sempre com confirmação.
+- Aba de status que separa funções disponíveis de sistemas futuros.
+- Log local em pasta de dados do usuário.
 
-Consulte [ROADMAP.md](ROADMAP.md) para as etapas e limitações. Não considere recursos planejados como funcionalidades prontas.
+### Executar
 
-## Como executar a versão atual
-1. Instale Python 3 para Windows, se necessário: https://www.python.org/downloads/windows/
-2. Durante a instalação, marque **Add python.exe to PATH**.
-3. Baixe o ZIP da branch ou use **Code → Download ZIP**.
-4. Extraia a pasta e execute `INICIAR_BLACKCORE.bat`.
+Requisitos: Python 3.10 ou mais recente e Tkinter. psutil é opcional.
 
-O launcher precisa de uma instalação de Python existente; esta versão ainda não inclui o runtime Python dentro de uma pasta portátil.
+    python BLACKCORE_ULTIMATE_ONEFILE.py
 
-## Testes
-O workflow `.github/workflows/tests.yml` compila os módulos e executa testes unitários em Windows e Linux. O status real deve ser conferido na aba **Actions** depois que o workflow rodar.
+Executar os testes embutidos sem abrir a interface:
+
+    python BLACKCORE_ULTIMATE_ONEFILE.py --self-test
+
+Os testes automatizados de CI também exercitam as funções centrais:
+
+    python -m unittest discover -s tests -v
+
+### Configurar IA
+
+Padrão local: Ollama em http://127.0.0.1:11434/api/chat, modelo llama3.2. Instale/inicie o Ollama e baixe o modelo separadamente.
+
+Para API compatível com OpenAI, configure no ambiente local:
+- BLACKCORE_AI_PROVIDER=openai_compatible
+- BLACKCORE_AI_ENDPOINT=https://... (endpoint HTTPS do provedor)
+- BLACKCORE_AI_API_KEY (segredo local; nunca no código ou GitHub)
+- BLACKCORE_AI_MODEL (opcional)
+
+O chat devolve texto e nunca executa o conteúdo gerado pela IA. A configuração por variáveis de ambiente ainda não tem um assistente gráfico nem cofre dedicado de credenciais do Windows.
+
+## Sistemas na aplicação modular existente
+
+O projeto modular continua disponível através de blackcore.py e blackcore_core/. Essa versão contém o Workbench integrado e os módulos separados de AI provider, Roblox Lab, backups, plugins, sessões remotas abstratas e monitoramento. A edição de arquivo único é uma alternativa independente e não substitui automaticamente os módulos.
+
+## O que ainda é futuro — não anunciar como pronto
+
+- App Android real, transmissão de tela e comandos remotos autenticados.
+- Acesso de fora de casa via VPN/rede privada, TLS, pareamento de dispositivo, revogação e testes de ameaça.
+- Sandbox de processos para plugins de terceiros.
+- Aplicação de patches no Roblox com backup, aprovação e testes posteriores.
+- Memória persistente/projetos/anexos para a IA.
+- Automação ampla de Windows com catálogo de ações, cancelamento global e permissões por ação.
+- Atualização segura, assinatura, instalador com runtime embutido, desinstalação limpa e rollback.
+- Testes de instalação limpa e validação em PC/Roblox Studio/Android reais.
+
+O arquivo único não inicia servidor remoto nem abre portas de rede. O controle remoto só deve ser adicionado após existir um protocolo autenticado e criptografado, consentimento visível e revisão de segurança. Nunca exponha uma porta de controle diretamente à internet.
+
+## Testes e publicação
+
+GitHub Actions compila o código e executa testes unitários em Windows e Linux. Confira a aba Actions para o resultado do commit mais recente. Passar no CI não substitui testes no computador do usuário.
+
+As alterações foram feitas na branch feature/ultimate-foundation; elas não passam automaticamente para main. Revisão e integração devem ocorrer depois de verificar os testes e o estado do PR.
 
 ## Segurança
-- Não coloque tokens, senhas ou chaves de API no código público.
-- Nenhum serviço de controle remoto deve ser exposto à internet sem autenticação, transporte seguro, expiração de sessão e revisão de segurança.
-- Ações que alterem arquivos ou configurações devem apresentar o alvo e pedir aprovação.
-- Não use a função de digitação em campos de senha, pagamentos ou comandos sensíveis.
 
-
-## Configuração de IA e Workbench\n\nA interface agora inclui a janela **AI / Roblox Workbench**. No chat, a IA é chamada em segundo plano para não congelar a janela. Por padrão, usa Ollama em `http://127.0.0.1:11434/api/chat` com o modelo `llama3.2`. Instale e inicie o Ollama e baixe o modelo separadamente, ou configure um provedor compatível por variáveis de ambiente.\n\nPara API hospedada, configure `BLACKCORE_AI_PROVIDER=openai_compatible`, `BLACKCORE_AI_ENDPOINT` com URL HTTPS, `BLACKCORE_AI_API_KEY` no ambiente local e opcionalmente `BLACKCORE_AI_MODEL`. Não grave a chave em arquivos do projeto. A interface não oferece ainda um cofre de credenciais do Windows.\n\n### Workbench: Roblox, plugins e backups\n- Roblox Lab: escolha uma pasta para inspecionar scripts; o relatório é heurístico e somente leitura.\n- Plugins: cadastre um manifesto JSON, com aprovação explícita e zero permissões concedidas por padrão; nenhum código de plugin é carregado ou executado.\n- Backups: crie um backup de arquivo e restaure para um destino escolhido após confirmação e verificação do hash. Guarde os metadados junto do backup e proteja ambos; o hash de metadados não é uma assinatura digital.\n\n## Initial AI provider configuration
-The provider layer is a library prototype and is not yet integrated into the graphical chat UI.
-
-- Local Ollama is the default, using http://127.0.0.1:11434/api/chat unless BLACKCORE_AI_ENDPOINT is set.
-- For an OpenAI-compatible hosted API, set BLACKCORE_AI_PROVIDER=openai_compatible, BLACKCORE_AI_ENDPOINT to an HTTPS endpoint, BLACKCORE_AI_API_KEY in the environment, and optionally BLACKCORE_AI_MODEL.
-- Never put API keys in repository files, screenshots, or logs. The AI module returns text only and does not execute model output.
-
-## Roblox Studio Lab prototype
-The Lab accepts a local project folder, reads .lua/.luau files only, reports heuristic findings, and can generate a diff preview. It does not execute project code or apply patches.
-
-## Etapa 6 — plugins e recuperação (protótipo implementado)
-- O registro de plugins exige aprovação explícita, concede apenas permissões solicitadas e mantém plugins desativados por padrão.
-- A ativação altera somente o estado do registro: plugins externos não são carregados nem executados.
-- Backups versionados registram SHA-256; restauração exige confirmação e valida o hash antes de substituir o destino atomicamente.
-- Ainda falta isolamento de processo/sandbox real, UI de gestão e testes em arquivos e ambientes reais do usuário.
-
-## Etapa 7 — sessões remotas (primitivas implementadas)
-- Código de pareamento de uso único, permissões mínimas, limitação de tentativas, expiração de sessão, revogação e auditoria sem registrar tokens.
-- O módulo é independente do transporte: não abre portas, não transmite tela e não controla dispositivos por conta própria.
-- Para controle real será necessário um app Android, um transporte criptografado autenticado (preferencialmente VPN privada), integração com a UI, testes de ameaça e validação em dispositivos. Não exponha uma porta de controle diretamente à internet.
+- Nunca comite tokens, senhas ou chaves de API.
+- Backups e metadados devem ser guardados juntos e protegidos; SHA-256 detecta divergência, mas não é assinatura digital.
+- Roblox Lab é somente leitura; os achados são heurísticos, não uma prova de ausência de bugs.
+- Plugins são apenas validados/cadastrados como metadados; nenhum plugin externo é executado.
+- Ações locais pedem confirmação. Nenhuma saída de IA é interpretada como comando.
