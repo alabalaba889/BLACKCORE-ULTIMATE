@@ -31,15 +31,17 @@ This roadmap is a plan, not a claim that every capability already exists.
 - Back up files before changes and show diffs before applying them.
 - Use Roblox Studio's supported workflows; no exploit executor or game-cheat functionality.
 
-## Phase 6 — plugins and recovery
-- Validate plugin manifests and permission requests before installation.
-- Run third-party plugins in an isolated process/sandbox before enabling them.
-- Maintain versioned backups and require explicit confirmation for restoration or repair.
+## Phase 6 — plugins and recovery (prototype implemented)
+- Implemented: local plugin registry with explicit approval, per-plugin permission grants, disabled-by-default state, and no plugin execution.
+- Implemented: versioned file backups with SHA-256 verification, explicit restore confirmation, and atomic destination replacement.
+- Implemented: plugin manifest path validation against native and Windows absolute/traversal paths.
+- Still to do: process isolation/sandbox, UI for permissions and recovery history, safe installation from trusted sources, and real-world recovery tests.
 
-## Phase 7 — Android and remote access
-- First build a LAN pairing flow with one-time pairing, device revocation, session expiry, and least-privilege commands.
-- Remote-from-anywhere access must use a secure transport, authenticated pairing, rate limits, audit logs, and no exposed unauthenticated control port.
-- Do not ship a public internet listener or pretend that LAN-only code is internet-ready. Validate the threat model and setup before enabling this phase.
+## Phase 7 — Android and remote access (session primitives implemented)
+- Implemented: one-time pairing code, bounded pairing/session TTL, least-privilege permission map, command allowlist, attempt rate limiting, session revocation, and bounded audit events that never store session tokens.
+- Intentionally not implemented: network listener, remote screen streaming, Android app, real mouse/keyboard execution over the network, or internet-facing service.
+- Still to do: Android client, encrypted authenticated transport, private VPN setup guidance, integration with desktop consent prompts, device management UI, threat-model review, and end-to-end tests on real devices.
+- Do not expose a public internet listener or treat the transport-agnostic session module as a complete remote-control system.
 
 ## Validation status
 - Unit tests are included and run in GitHub Actions on Windows and Linux. Check the latest workflow result before treating a change as validated.
@@ -60,3 +62,6 @@ This roadmap is a plan, not a claim that every capability already exists.
 - Implemented: unified diff preview for proposed text changes; preview does not write to disk.
 - Still to do: richer Luau parser/type diagnostics, Studio plugin bridge, backup-before-apply workflow, and project-specific testing.
 - Use Roblox Studio's supported workflows; no exploit executor or game-cheat functionality.
+
+## Phase 6–7 implementation notes
+The modules `blackcore_core/plugin_manager.py`, `blackcore_core/versioned_backups.py`, and `blackcore_core/remote_sessions.py` provide testable primitives only. Plugin activation does not execute code. Remote sessions are in-memory and transport-agnostic; the Android app and secure network transport remain unbuilt. Passing unit tests does not equal Windows/Android device validation.
