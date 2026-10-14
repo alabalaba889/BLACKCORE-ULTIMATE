@@ -1,5 +1,5 @@
-"""Authenticated read-only HTTPS bridge for BLACKCORE mobile clients."""
-import argparse, hmac, json, os, platform, shutil, ssl, time
+"""Authenticated read-only HTTPS bridge and same-origin mobile panel."""
+import argparse, hmac, json, mimetypes, os, platform, shutil, ssl, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -7,6 +7,10 @@ try:
     import psutil
 except ImportError:
     psutil = None
+
+WEB_ROOT = Path(__file__).resolve().parent.parent / "mobile_web"
+WEB_FILES = {"/": "index.html", "/index.html": "index.html",
+             "/manifest.webmanifest": "manifest.webmanifest", "/sw.js": "sw.js"}
 
 def collect_status():
     data = {"product":"BLACKCORE ULTIMATE","platform":platform.platform(),"timestamp":int(time.time()),
@@ -35,6 +39,17 @@ def make_handler(token):
             self.send_header("X-Content-Type-Options","nosniff"); self.end_headers(); self.wfile.write(body)
         def do_GET(self):
             path=urlparse(self.path).path
+            if path in WEB_FILES:
+                target=WEB_ROOT / WEB_FILES[path]
+                try: body=target.read_bytes()
+                except OSError: self.send_json(503,{"error":"mobile_panel_unavailable"}); return
+                mime=mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+                if target.suffix==".webmanifest": mime="application/manifest+json"
+                self.send_response(200); self.send_header("Content-Type",mime+"; charset=utf-8")
+                self.send_header("Content-Length",str(len(body))); self.send_header("X-Content-Type-Options","nosniff")
+                self.send_header("Referrer-Policy","no-referrer"); self.send_header("Cache-Control","no-cache")
+                self.send_header("Content-Security-Policy","default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; manifest-src 'self'")
+                self.end_headers(); self.wfile.write(body); return
             if path=="/api/health": self.send_json(200,{"ok":True,"auth_required":True}); return
             if path not in ("/api/status","/api/v1/status"): self.send_json(404,{"error":"not_found"}); return
             auth=self.headers.get("Authorization","")
@@ -64,7 +79,7 @@ def main(argv=None):
     a=p.parse_args(argv); token=os.environ.get("BLACKCORE_BRIDGE_TOKEN","")
     if len(token)<32: p.error("Set BLACKCORE_BRIDGE_TOKEN to a random secret of at least 32 characters.")
     server=create_server(a.host,a.port,token,a.cert,a.key)
-    print("BLACKCORE bridge started; read-only telemetry only; remote commands are disabled.")
+    print("BLACKCORE bridge started; panel and read-only telemetry are available; remote commands are disabled.")
     try: server.serve_forever()
     except KeyboardInterrupt: pass
     finally: server.server_close()
