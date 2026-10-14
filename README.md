@@ -22,10 +22,10 @@ Projeto portátil para Windows, construído por etapas. O aplicativo original fo
 - Transporte de rede autenticado e criptografado para o protocolo de pareamento (as primitivas atuais não abrem portas nem criam servidor).
 - Configuração guiada de VPN privada para acesso fora de casa e gestão de dispositivos integrada à interface.
 - Métricas reais de GPU e gráficos históricos integrados na interface.
-- Integração com IA local/online e gestão de credenciais.
-- Roblox Studio Lab funcional para inspecionar, testar e aplicar patches.
+- Janela Workbench integrada com chat de IA local/online por configuração de ambiente; a interface não executa respostas da IA.\n- O chat exige Ollama local em execução ou variáveis de ambiente configuradas para provedor compatível; ainda falta cofre de credenciais do Windows e assistente de configuração.
+- Roblox Studio Lab integrado para inspeção somente leitura de scripts .lua/.luau; mostra achados heurísticos e não executa nem aplica patches. A prévia de diff existe como função de biblioteca, mas a aplicação controlada ainda falta.
 - Sandbox real para plugins externos.
-- Reparação automática integrada e histórico de restauração na interface.
+- Workbench com criação e restauração confirmada de backup versionado, validação SHA-256 e cadastro de manifesto de plugin sem executar código. Ainda falta histórico visual completo, restauração de projeto inteiro e sandbox real.
 - Empacotamento portátil completo com runtime incluído.
 
 Consulte [ROADMAP.md](ROADMAP.md) para as etapas e limitações. Não considere recursos planejados como funcionalidades prontas.
@@ -48,7 +48,7 @@ O workflow `.github/workflows/tests.yml` compila os módulos e executa testes un
 - Não use a função de digitação em campos de senha, pagamentos ou comandos sensíveis.
 
 
-## Initial AI provider configuration
+## Configuração de IA e Workbench\n\nA interface agora inclui a janela **AI / Roblox Workbench**. No chat, a IA é chamada em segundo plano para não congelar a janela. Por padrão, usa Ollama em `http://127.0.0.1:11434/api/chat` com o modelo `llama3.2`. Instale e inicie o Ollama e baixe o modelo separadamente, ou configure um provedor compatível por variáveis de ambiente.\n\nPara API hospedada, configure `BLACKCORE_AI_PROVIDER=openai_compatible`, `BLACKCORE_AI_ENDPOINT` com URL HTTPS, `BLACKCORE_AI_API_KEY` no ambiente local e opcionalmente `BLACKCORE_AI_MODEL`. Não grave a chave em arquivos do projeto. A interface não oferece ainda um cofre de credenciais do Windows.\n\n### Workbench: Roblox, plugins e backups\n- Roblox Lab: escolha uma pasta para inspecionar scripts; o relatório é heurístico e somente leitura.\n- Plugins: cadastre um manifesto JSON, com aprovação explícita e zero permissões concedidas por padrão; nenhum código de plugin é carregado ou executado.\n- Backups: crie um backup de arquivo e restaure para um destino escolhido após confirmação e verificação do hash. Guarde os metadados junto do backup e proteja ambos; o hash de metadados não é uma assinatura digital.\n\n## Initial AI provider configuration
 The provider layer is a library prototype and is not yet integrated into the graphical chat UI.
 
 - Local Ollama is the default, using http://127.0.0.1:11434/api/chat unless BLACKCORE_AI_ENDPOINT is set.
