@@ -75,15 +75,16 @@
       message("Remova usuário, senha, query e fragmento do endereço.", "bad"); return;
     }
     if (activeController) activeController.abort();
-    activeController = new AbortController();
-    const timeout = setTimeout(() => activeController?.abort(), 9000);
+    const controller = new AbortController();
+    activeController = controller;
+    const timeout = setTimeout(() => controller.abort(), 9000);
     const started = performance.now();
     state("CONECTANDO…"); el("connect").disabled = true; el("refresh").disabled = true;
     message("Consultando telemetria em modo somente leitura…");
     try {
       const response = await fetch(base + "/api/status", {
         headers: {Authorization: "Bearer " + token, Accept: "application/json"},
-        cache: "no-store", credentials: "omit", redirect: "error", signal: activeController.signal
+        cache: "no-store", credentials: "omit", redirect: "error", signal: controller.signal
       });
       if (!response.ok) {
         if (response.status === 401) throw new Error("Token recusado (401).");
@@ -104,12 +105,16 @@
       el("autoRefreshRow").classList.remove("hidden");
       el("showSnapshot").classList.remove("hidden");
     } catch (error) {
+      if (activeController !== controller) return;
       state("ERRO");
       const detail = error.name === "AbortError" ? "Tempo limite excedido (9 s)." : error.message;
       message("Falha na conexão: " + detail + "\nConfira endereço, token, certificado HTTPS e se o bridge está rodando.", "bad");
     } finally {
-      clearTimeout(timeout); activeController = null;
-      el("connect").disabled = false; el("refresh").disabled = false;
+      clearTimeout(timeout);
+      if (activeController === controller) {
+        activeController = null;
+        el("connect").disabled = false; el("refresh").disabled = false;
+      }
     }
   }
   function stopAuto() {
@@ -125,6 +130,8 @@
   function disconnect() {
     stopAuto();
     if (activeController) activeController.abort();
+    activeController = null;
+    el("connect").disabled = false; el("refresh").disabled = false;
     el("token").value = "";
     lastSnapshot = null;
     ids.forEach(id => { if (el(id)) el(id).textContent = "—"; });
