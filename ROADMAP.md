@@ -45,3 +45,18 @@ This roadmap is a plan, not a claim that every capability already exists.
 - Unit tests are included and run in GitHub Actions on Windows and Linux. Check the latest workflow result before treating a change as validated.
 - UI interaction and mouse/keyboard actions still require real-device testing on the user’s Windows PC.
 - Desktop UI, Android connectivity, GPU metrics, AI providers, and Roblox Studio integration still require implementation and real-device testing.
+
+
+## Phase 4 — AI hybrid (initial provider layer implemented)
+- Implemented: provider abstraction for local Ollama and OpenAI-compatible chat APIs.
+- Implemented: credentials are read from environment variables; no API keys are stored in the repository.
+- Implemented: role/content validation, message-size limits, request timeout, response-size limit, and sanitized connection errors.
+- Implemented: text-only replies; model output is never executed as a command or applied to files.
+- Still to do: OS credential vault, provider selection UI, local model installation guidance, and explicit approval workflow integrated into the app.
+
+## Phase 5 — Roblox Studio Lab (read-only prototype implemented)
+- Implemented: read-only scanning of .lua/.luau files with file count/size limits and no script execution.
+- Implemented: initial heuristic findings for wait(), loadstring(), FireServer(), OnServerEvent, GetAsync(), and LocalPlayer context.
+- Implemented: unified diff preview for proposed text changes; preview does not write to disk.
+- Still to do: richer Luau parser/type diagnostics, Studio plugin bridge, backup-before-apply workflow, and project-specific testing.
+- Use Roblox Studio's supported workflows; no exploit executor or game-cheat functionality.
