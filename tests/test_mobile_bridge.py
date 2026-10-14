@@ -37,7 +37,7 @@ class MobileBridgeSafetyTests(unittest.TestCase):
 
     def test_mobile_panel_and_assets_same_origin_with_strict_csp(self):
         for path, expected in (("/", "BLACKCORE"), ("/style.css", "--green"),
-                               ("/app.js", "read-only"), ("/manifest.webmanifest", "BLACKCORE")):
+                               ("/app.js", "somente leitura"), ("/manifest.webmanifest", "BLACKCORE")):
             with urlopen(self.base + path, timeout=3) as response:
                 body = response.read().decode()
                 self.assertEqual(response.status, 200)
