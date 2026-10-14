@@ -5,6 +5,7 @@ from pathlib import Path
 from blackcore_core.plugin_manager import PluginRegistry
 from blackcore_core.remote_sessions import PairingManager
 from blackcore_core.versioned_backups import create_versioned_backup, restore_versioned_backup
+from blackcore_core.plugins import validate_manifest
 
 
 class StageSixTests(unittest.TestCase):
@@ -25,12 +26,27 @@ class StageSixTests(unittest.TestCase):
             self.assertTrue(enabled["enabled"])
             self.assertFalse(enabled["execution_supported"])
 
+    def test_windows_traversal_plugin_paths_are_rejected(self):
+        base = {"name": "Demo", "version": "1", "permissions": [], "entrypoint": "main.py"}
+        for unsafe in ("../outside.py", r"..\\outside.py", r"C:\\outside.py", r"\\\\server\\share\\plugin.py"):
+            with self.subTest(entrypoint=unsafe):
+                with self.assertRaises(ValueError):
+                    validate_manifest({**base, "entrypoint": unsafe})
+
     def test_versioned_backup_integrity_and_confirmation(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             source = root / "settings.ini"
             source.write_text("safe=1", encoding="utf-8")
             backup = create_versioned_backup(str(source), str(root / "backups"))
+            if hasattr(Path, "symlink_to"):
+                link = root / "linked-settings.ini"
+                try:
+                    link.symlink_to(source)
+                    with self.assertRaises(ValueError):
+                        create_versioned_backup(str(link), str(root / "backups"))
+                except (OSError, NotImplementedError):
+                    pass
             source.write_text("safe=0", encoding="utf-8")
             with self.assertRaises(PermissionError):
                 restore_versioned_backup(backup["backup_path"], str(source), backup["sha256"])
