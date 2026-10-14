@@ -22,10 +22,10 @@
  <input id="endpoint" inputmode="url" autocomplete="url" placeholder="https://192.168.1.20:8765">
  <label for="token">Token de acesso (32+ caracteres)</label>
  <input id="token" type="password" autocomplete="off" placeholder="Cole o token local">
- <div class="inline" style="margin-top:8px"><button class="secondary" id="toggleToken" type="button">Mostrar token</button><small>Não é salvo no navegador.</small></div>
+ <div class="inline" class="inline-spaced"><button class="secondary" id="toggleToken" type="button">Mostrar token</button><small>Não é salvo no navegador.</small></div>
  <div class="actions">
   <button id="connect" type="button">Conectar e ler status</button>
-  <button class="secondary" id="refresh" type="button" hidden>Atualizar agora</button>
+  <button class="secondary" id="refresh" type="button" class="secondary hidden">Atualizar agora</button>
   <button class="secondary hidden" id="disconnect" type="button">Desconectar e apagar token</button>
   <button class="secondary hidden" id="copy" type="button">Copiar resumo</button>
   <button class="secondary hidden" id="export" type="button">Exportar JSON</button>
