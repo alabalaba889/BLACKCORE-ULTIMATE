@@ -17,8 +17,8 @@ Este documento distingue recursos implementados, protótipos e trabalho futuro. 
 ## Etapa 3 — monitoramento (parcial)
 - Implementado na interface: CPU, RAM, uso do disco e histórico compacto de CPU/RAM/disco.
 - Implementado: amostrador de velocidade de rede baseado em contadores opcionais de psutil.
-- Implementado como helpers ainda não integrados à tela: snapshot limitado de processos e telemetria NVIDIA opcional via nvidia-smi com timeout.
-- Falta: gráficos históricos, métricas por processo na interface, GPU/jogos com provedores documentados e alertas configuráveis. Hardware sem suporte deve ser mostrado como indisponível.
+- Implementado no Workbench: leitura pontual de processos (opcional, via psutil) e telemetria NVIDIA via nvidia-smi com timeout; não encerra processos nem instala drivers.
+- Falta: gráficos históricos completos, uso de CPU por processo, métricas específicas de jogos e alertas configuráveis. Hardware sem suporte deve ser mostrado como indisponível.
 
 ## Etapa 4 — IA híbrida (chat inicial integrado)
 - Implementado: janela Workbench com chat assíncrono para Ollama local ou API compatível com OpenAI.
