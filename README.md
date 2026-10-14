@@ -1,74 +1,67 @@
 # BLACKCORE ULTIMATE
 
-Aplicativo local para Windows e outros sistemas com Python/Tkinter. Este repositório mantém a aplicação modular existente e inclui uma edição independente de arquivo único: **BLACKCORE_ULTIMATE_ONEFILE.py**.
+Aplicativo local para Windows com uma edição Python independente e uma nova base mobile em desenvolvimento. As funcionalidades abaixo são separadas por estágio; não confunda o painel mobile com controle remoto completo.
 
-## Edição de arquivo único
+## Edição Windows de arquivo único
 
-O arquivo **BLACKCORE_ULTIMATE_ONEFILE.py** reúne numa aplicação só:
-- Dashboard de leitura de CPU/RAM/disco/rede e processos, usando psutil quando disponível.
-- Telemetria opcional de GPU NVIDIA via nvidia-smi, se o utilitário já estiver instalado.
-- Chat de IA com Ollama local ou API compatível com OpenAI via HTTPS, em uma thread separada para não congelar a interface.
-- Roblox Studio Lab para leitura heurística de scripts .lua e .luau; não executa nem altera scripts.
-- Prévia de diff textual; não aplica patches.
-- Backup e restauração de arquivos com SHA-256 e confirmação explícita.
-- Validação de manifesto de plugin. Nenhum código de plugin é importado ou executado.
-- Abertura de aplicativos numa pequena lista permitida, sempre com confirmação.
-- Aba de status que separa funções disponíveis de sistemas futuros.
-- Log local em pasta de dados do usuário.
+**BLACKCORE_ULTIMATE_ONEFILE.py** inclui:
+- Monitoramento de CPU/RAM/disco/rede/processos e telemetria opcional NVIDIA.
+- Chat de IA com Ollama local ou API compatível com OpenAI via HTTPS.
+- Roblox Studio Lab em modo somente leitura e prévia de diff.
+- Backup/restauração com SHA-256 e confirmação.
+- Validação de manifesto de plugins sem executar código externo.
+- Abertura confirmada de alguns aplicativos permitidos e logs locais.
 
-### Executar
+Requisitos: Python 3.10+ e Tkinter. Execute `python BLACKCORE_ULTIMATE_ONEFILE.py`. Testes: `python -m unittest discover -s tests -v`.
 
-Requisitos: Python 3.10 ou mais recente e Tkinter. psutil é opcional.
+## Mobile — implementação inicial
 
-    python BLACKCORE_ULTIMATE_ONEFILE.py
+### Painel web instalável (PWA)
+O diretório `mobile_web/` contém uma interface responsiva que pode ser instalada pelo navegador compatível. Ela conecta ao bridge e lê CPU, memória e disco. O cache offline cobre somente a interface; dados do PC exigem conexão.
 
-Executar os testes embutidos sem abrir a interface:
+### Aplicativo Android (projeto fonte)
+O diretório `android/` contém um projeto Kotlin/Jetpack Compose com formulário de endereço HTTPS/token e consulta de telemetria. O cliente exige HTTPS e confia nos certificados aceitos pelo Android. O APK de debug só deve ser considerado gerado quando o job Android no GitHub Actions terminar com sucesso.
 
-    python BLACKCORE_ULTIMATE_ONEFILE.py --self-test
+### Bridge de telemetria no PC
+O módulo `blackcore_core/mobile_bridge.py` fornece endpoints de leitura autenticados por bearer token:
+- `GET /api/health` — estado básico do serviço.
+- `GET /api/status` — métricas autenticadas.
+- Outros caminhos retornam 404; métodos POST/PUT/DELETE são recusados.
 
-Os testes automatizados de CI também exercitam as funções centrais:
+Por segurança, o padrão é bind apenas em `127.0.0.1`. Um bind de rede (por exemplo, `0.0.0.0`) exige certificado TLS, chave e token de pelo menos 32 caracteres. Gere o token fora do repositório e guarde-o como segredo local `BLACKCORE_BRIDGE_TOKEN`. Para uma rede local, o certificado precisa ter o endereço usado pelo celular no SAN e ser confiável no dispositivo; um certificado inválido não deve ser contornado. Instale `psutil` opcionalmente para CPU/RAM.
 
-    python -m unittest discover -s tests -v
+Exemplo de execução local no Windows PowerShell:
+```powershell
+$env:BLACKCORE_BRIDGE_TOKEN = "substitua-por-um-segredo-aleatorio-com-32-caracteres-ou-mais"
+python -m blackcore_core.mobile_bridge
+```
 
-### Configurar IA
+O modo padrão localhost serve para diagnóstico no próprio PC, não para conectar de outro aparelho. Para habilitar Wi-Fi local, configure TLS/certificado confiável e rode com `--host 0.0.0.0 --cert caminho\cert.pem --key caminho\key.pem`. Restrinja a porta no firewall. Para uso fora de casa, prefira uma VPN privada que torne o PC acessível apenas aos seus dispositivos; não encaminhe a porta do bridge diretamente para a internet. Nunca compartilhe o token.
 
-Padrão local: Ollama em http://127.0.0.1:11434/api/chat, modelo llama3.2. Instale/inicie o Ollama e baixe o modelo separadamente.
+## Ainda não implementado
 
-Para API compatível com OpenAI, configure no ambiente local:
-- BLACKCORE_AI_PROVIDER=openai_compatible
-- BLACKCORE_AI_ENDPOINT=https://... (endpoint HTTPS do provedor)
-- BLACKCORE_AI_API_KEY (segredo local; nunca no código ou GitHub)
-- BLACKCORE_AI_MODEL (opcional)
+- Controle de tela ao vivo, mouse/teclado remoto, automação de aplicativos ou execução remota de comandos.
+- Pareamento de dispositivos com expiração/revogação, gestão de vários usuários e auditoria de sessões.
+- Configuração automatizada de VPN e certificado, criação de APK assinado para distribuição e publicação na Play Store.
+- Sandbox de plugins, aplicação automática de patches, memória persistente de IA, instalador Windows assinado e rollback.
+- Validação manual em dispositivos Android e em PCs reais.
 
-O chat devolve texto e nunca executa o conteúdo gerado pela IA. A configuração por variáveis de ambiente ainda não tem um assistente gráfico nem cofre dedicado de credenciais do Windows.
+O bridge atual é **somente leitura**; o painel web e o app Android não podem controlar o PC. A autenticação por token não substitui TLS, certificado confiável, firewall e VPN para uso remoto.
 
-## Sistemas na aplicação modular existente
+## IA
 
-O projeto modular continua disponível através de blackcore.py e blackcore_core/. Essa versão contém o Workbench integrado e os módulos separados de AI provider, Roblox Lab, backups, plugins, sessões remotas abstratas e monitoramento. A edição de arquivo único é uma alternativa independente e não substitui automaticamente os módulos.
+Ollama local é a opção padrão do arquivo único. Para provedor compatível com OpenAI, configure `BLACKCORE_AI_PROVIDER=openai_compatible`, `BLACKCORE_AI_ENDPOINT=https://...`, `BLACKCORE_AI_API_KEY` e opcionalmente `BLACKCORE_AI_MODEL`. Nunca grave chaves no código ou no GitHub.
 
-## O que ainda é futuro — não anunciar como pronto
+## Testes e GitHub
 
-- App Android real, transmissão de tela e comandos remotos autenticados.
-- Acesso de fora de casa via VPN/rede privada, TLS, pareamento de dispositivo, revogação e testes de ameaça.
-- Sandbox de processos para plugins de terceiros.
-- Aplicação de patches no Roblox com backup, aprovação e testes posteriores.
-- Memória persistente/projetos/anexos para a IA.
-- Automação ampla de Windows com catálogo de ações, cancelamento global e permissões por ação.
-- Atualização segura, assinatura, instalador com runtime embutido, desinstalação limpa e rollback.
-- Testes de instalação limpa e validação em PC/Roblox Studio/Android reais.
+A workflow existente testa Python em Windows/Linux. A workflow mobile testa arquivos web e tenta montar o APK Android de debug. Confira os resultados em [GitHub Actions](https://github.com/alabalaba889/BLACKCORE-ULTIMATE/actions). CI verde não substitui testes no seu computador/celular.
 
-O arquivo único não inicia servidor remoto nem abre portas de rede. O controle remoto só deve ser adicionado após existir um protocolo autenticado e criptografado, consentimento visível e revisão de segurança. Nunca exponha uma porta de controle diretamente à internet.
-
-## Testes e publicação
-
-GitHub Actions compila o código e executa testes unitários em Windows e Linux. Confira a aba Actions para o resultado do commit mais recente. Passar no CI não substitui testes no computador do usuário.
-
-As alterações foram feitas na branch feature/ultimate-foundation; elas não passam automaticamente para main. Revisão e integração devem ocorrer depois de verificar os testes e o estado do PR.
+Todo o trabalho está na branch `feature/ultimate-foundation`; isso não significa que foi mesclado em `main`.
 
 ## Segurança
 
-- Nunca comite tokens, senhas ou chaves de API.
-- Backups e metadados devem ser guardados juntos e protegidos; SHA-256 detecta divergência, mas não é assinatura digital.
-- Roblox Lab é somente leitura; os achados são heurísticos, não uma prova de ausência de bugs.
-- Plugins são apenas validados/cadastrados como metadados; nenhum plugin externo é executado.
-- Ações locais pedem confirmação. Nenhuma saída de IA é interpretada como comando.
+- A IA não executa texto que ela própria gerar.
+- Plugins são metadados e não são executados.
+- Roblox Lab não altera scripts.
+- SHA-256 detecta alterações nos backups, mas não é assinatura digital.
+- Não use HTTP para telemetria fora do próprio computador e nunca exponha o bridge diretamente à internet.
