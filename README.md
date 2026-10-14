@@ -8,14 +8,15 @@ Projeto portátil para Windows, construído por etapas. O aplicativo original fo
 - Atalhos para abrir Bloco de Notas e Calculadora.
 - Digitação de texto no aplicativo ativo após confirmação e contagem de 3 segundos.
 - Simulações visuais reversíveis e log local.
-- Módulo de métricas de disco e contadores de rede opcionais.
+- Métricas de disco integradas à interface e contadores de rede opcionais (dependem de `psutil`).
+- Controles locais de movimento e clique do mouse por coordenadas, com confirmação visível antes de cada ação.
 - Camada de autorização explícita para ações sensíveis.
 - Helpers de backup e restauração que exigem confirmação explícita ao restaurar.
 - Validador de manifesto de plugins (valida metadados e permissões; não executa plugins).
 - Testes unitários e workflow de CI para Windows e Linux.
 
 ## Ainda não implementado
-- Controle remoto real de mouse/teclado.
+- Controle remoto real de mouse/teclado pelo Android ou pela rede.
 - Pareamento e controle Android pela rede local ou pela internet.
 - Canal remoto seguro e gestão de sessões/dispositivos.
 - Métricas reais de GPU e gráficos históricos integrados na interface.
