@@ -1,7 +1,8 @@
 import ctypes, os, platform, shutil, subprocess, time, tkinter as tk
 from tkinter import messagebox
 
-from blackcore_core.monitor import sparkline
+from blackcore_core.monitor import sparkline, format_bytes
+from blackcore_core.performance import NetworkRateSampler
 
 BG, PANEL, GREEN, MUTED = "#080d0b", "#101a15", "#39ff88", "#8eb9a0"
 
@@ -34,7 +35,7 @@ class App:
     def __init__(self, root):
         self.root=root; root.title("BLACKCORE // LOCAL CONTROL"); root.geometry("900x680")
         root.minsize(760,580); root.configure(bg=BG); self.prev=cpu_sample(); self.effect=None
-        self.cpu_history=[]; self.ram_history=[]; self.disk_history=[]
+        self.cpu_history=[]; self.ram_history=[]; self.disk_history=[]; self.network_sampler=NetworkRateSampler(); self.workbench=None
         self.build(); self.log("BLACKCORE iniciado em modo local.")
         self.log("Sem conexão remota; nenhuma ação ocorre sem clique.")
         self.refresh(); root.protocol("WM_DELETE_WINDOW",self.close)
@@ -58,7 +59,7 @@ class App:
         right=tk.Frame(body,bg=PANEL,highlightbackground="#1d5034",highlightthickness=1); right.pack(side="right",fill="both",expand=True,padx=(7,0))
         tk.Label(left,text="CONTROLE LOCAL",font=("Consolas",13,"bold"),fg=GREEN,bg=PANEL).pack(anchor="w",padx=14,pady=(14,5))
         tk.Label(left,text="Ações locais, acionadas manualmente.",font=("Consolas",9),fg=MUTED,bg=PANEL).pack(anchor="w",padx=14,pady=(0,9))
-        self.btn(left,"ABRIR BLOCO DE NOTAS",self.notepad); self.btn(left,"ABRIR CALCULADORA",self.calc)
+        self.btn(left,"ABRIR BLOCO DE NOTAS",self.notepad); self.btn(left,"ABRIR CALCULADORA",self.calc)\n        self.btn(left,"ABRIR AI / ROBLOX WORKBENCH",self.open_workbench)
         tk.Label(left,text="Controle do mouse (coordenadas da tela):",font=("Consolas",9),fg=MUTED,bg=PANEL).pack(anchor="w",padx=14,pady=(14,4))
         coords=tk.Frame(left,bg=PANEL); coords.pack(fill="x",padx=14,pady=3)
         self.mouse_x=tk.Entry(coords,width=8,font=("Consolas",10),bg="#07100b",fg=GREEN,insertbackground=GREEN,relief="flat")
@@ -99,12 +100,13 @@ class App:
             self.ram_history.append(r[0] if r else None); self.ram_history=self.ram_history[-40:]
             self.disk_history.append(dp); self.disk_history=self.disk_history[-40:]
             self.history.set("HISTÓRICO ~60s | CPU "+sparkline(self.cpu_history)+" | RAM "+sparkline(self.ram_history)+" | DISCO "+sparkline(self.disk_history))
-            try:
-                import psutil
-                nc=psutil.net_io_counters()
-                self.net.set(f"REDE acumulada: ↑ {nc.bytes_sent/(1024**2):.1f} MB • ↓ {nc.bytes_recv/(1024**2):.1f} MB")
-            except (ImportError, AttributeError, OSError):
-                self.net.set("REDE: instale psutil para ver contadores (opcional)")
+            nr=self.network_sampler.sample()
+            if nr["available"] and nr["sent_bytes_per_sec"] is not None:
+                self.net.set("REDE: ↑ "+format_bytes(nr["sent_bytes_per_sec"])+"/s • ↓ "+format_bytes(nr["received_bytes_per_sec"])+"/s")
+            elif nr["available"]:
+                self.net.set("REDE: medindo velocidade…")
+            else:
+                self.net.set("REDE: instale psutil para medir velocidade (opcional)")
         except Exception as e: self.log("Métrica indisponível: "+str(e))
         self.root.after(1500,self.refresh)
     def notepad(self):
