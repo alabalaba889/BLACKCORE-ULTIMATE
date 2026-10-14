@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .ai_provider import AIClient, AIProviderError
 from .plugin_manager import PluginRegistry
+from .performance import nvidia_gpu_status, process_snapshot
 from .roblox_lab import inspect_project
 from .versioned_backups import create_versioned_backup, restore_versioned_backup
 
@@ -44,12 +45,15 @@ class Workbench:
         self.ai_tab = tk.Frame(self.tabs, bg=PANEL)
         self.roblox_tab = tk.Frame(self.tabs, bg=PANEL)
         self.recovery_tab = tk.Frame(self.tabs, bg=PANEL)
+        self.performance_tab = tk.Frame(self.tabs, bg=PANEL)
         self.tabs.add(self.ai_tab, text="IA")
         self.tabs.add(self.roblox_tab, text="Roblox Studio Lab")
         self.tabs.add(self.recovery_tab, text="Plugins e backups")
+        self.tabs.add(self.performance_tab, text="Desempenho")
         self._build_ai()
         self._build_roblox()
         self._build_recovery()
+        self._build_performance()
 
     def _label(self, parent, text):
         tk.Label(parent, text=text, bg=PANEL, fg=MUTED, font=("Consolas", 9)).pack(
@@ -248,6 +252,45 @@ class Workbench:
         self.refresh_plugins()
         self.logger("Manifesto de plugin cadastrado sem executar código.")
         messagebox.showinfo("Plugin", "Plugin cadastrado desativado, sem permissões concedidas e sem execução.")
+
+    def _build_performance(self):
+        self._label(self.performance_tab, "Leitura pontual. Métricas dependem de permissões, hardware e drivers; nenhum processo é encerrado.")
+        tk.Button(self.performance_tab, text="ATUALIZAR MÉTRICAS", command=self.refresh_performance,
+                  bg="#153c28", fg=GREEN, relief="flat", padx=12, pady=8).pack(anchor="w", padx=12, pady=6)
+        self.performance_view = tk.Text(self.performance_tab, bg="#050806", fg=GREEN,
+                                        font=("Consolas", 10), wrap="word", state="disabled")
+        self.performance_view.pack(fill="both", expand=True, padx=12, pady=8)
+        self.refresh_performance()
+
+    def refresh_performance(self):
+        lines = ["MÉTRICAS DE PROCESSOS (somente leitura)"]
+        try:
+            result = process_snapshot(limit=12)
+            if not result["available"]:
+                lines.append(result["reason"])
+            elif not result["processes"]:
+                lines.append("Nenhum processo pôde ser listado.")
+            else:
+                for item in result["processes"]:
+                    lines.append(f"PID {item['pid']:>6} | {item['memory_bytes'] / (1024 ** 2):>8.1f} MB | {item['name']}")
+        except (OSError, ValueError) as exc:
+            lines.append(f"Lista de processos indisponível: {exc}")
+        lines.extend(["", "GPU NVIDIA (nvidia-smi, se instalado):"])
+        try:
+            gpu = nvidia_gpu_status()
+            if not gpu["available"]:
+                lines.append(gpu["reason"])
+            else:
+                for item in gpu["gpus"]:
+                    lines.append(f"{item['name']} | uso {item['utilization_percent']}% | "
+                                 f"VRAM {item['memory_used_mb']}/{item['memory_total_mb']} MB")
+        except (OSError, ValueError) as exc:
+            lines.append(f"Telemetria GPU indisponível: {exc}")
+        lines.extend(["", "A leitura não encerra processos, não instala drivers e não altera configurações."])
+        self.performance_view.configure(state="normal")
+        self.performance_view.delete("1.0", "end")
+        self.performance_view.insert("end", "\\n".join(lines))
+        self.performance_view.configure(state="disabled")
 
     def _poll_events(self):
         try:
