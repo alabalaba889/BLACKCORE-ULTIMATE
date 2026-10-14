@@ -25,7 +25,10 @@ def inspect_project(root: str, *, max_files: int = DEFAULT_MAX_FILES, max_file_b
     if max_files < 1 or max_file_bytes < 1:
         raise ValueError("Limites de inspeção precisam ser positivos.")
     findings, scanned, skipped = [], 0, []
+    limit_reached = False
     for current, dirs, files in os.walk(base, topdown=True, followlinks=False):
+        if limit_reached:
+            break
         dirs[:] = sorted(d for d in dirs if not d.startswith(".") and not (Path(current) / d).is_symlink())
         for filename in sorted(files):
             path = Path(current) / filename
@@ -33,6 +36,7 @@ def inspect_project(root: str, *, max_files: int = DEFAULT_MAX_FILES, max_file_b
                 continue
             if scanned >= max_files:
                 skipped.append("Limite máximo de arquivos atingido.")
+                limit_reached = True
                 break
             try:
                 if path.is_symlink() or path.stat().st_size > max_file_bytes:
