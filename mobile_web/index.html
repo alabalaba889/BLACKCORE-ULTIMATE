@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07100c"><meta name="description" content="Painel mobile local do BLACKCORE ULTIMATE">
+<link rel="manifest" href="manifest.webmanifest"><title>BLACKCORE // Mobile</title>
+<style>
+:root{color-scheme:dark;--bg:#07100c;--panel:#101b15;--line:#244d34;--green:#55ff9a;--muted:#a3b9aa;--red:#ff9292}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#123020,var(--bg) 58%);color:#eefbf1;font:16px system-ui,sans-serif;min-height:100vh}
+main{max-width:760px;margin:auto;padding:calc(18px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}h1{font:800 1.4rem ui-monospace,monospace;color:var(--green);letter-spacing:.05em;margin:0}small,.muted{color:var(--muted)}.pill{border:1px solid var(--line);border-radius:99px;padding:6px 10px;font-size:.78rem}
+section{background:#101b15ef;border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 8px 30px #0003}
+h2{font-size:1rem;margin:0 0 12px;color:var(--green)}label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 5px}
+input{width:100%;padding:12px;border:1px solid #315b40;border-radius:10px;background:#07100c;color:#fff;font-size:16px}button{background:var(--green);color:#06110a;border:0;border-radius:10px;padding:12px 14px;font-weight:750;font-size:15px;width:100%;margin-top:12px;min-height:46px}
+button.secondary{background:#203a2a;color:#eaffef;border:1px solid var(--line)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metric{background:#07110c;border:1px solid #203c2a;border-radius:12px;padding:13px;min-width:0}.metric b{display:block;font-size:1.35rem;overflow-wrap:anywhere}.metric span{color:var(--muted);font-size:.8rem}
+#message{white-space:pre-wrap;font-size:.9rem;color:var(--muted);overflow-wrap:anywhere}.good{color:var(--green)!important}.bad{color:var(--red)!important}.notice{font-size:.88rem;line-height:1.5;color:var(--muted)}
+@media(min-width:600px){main{padding-top:32px}.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style></head><body><main>
+<header><div><h1>BLACKCORE</h1><small>ULTIMATE // MOBILE CONTROL</small></div><span class="pill" id="state">DESCONECTADO</span></header>
+<section><h2>Conectar ao PC</h2><p class="notice">Informe o endereço HTTPS do bridge no PC e o token criado por você. Para acesso fora de casa, use uma VPN privada; não exponha a porta diretamente à internet.</p>
+<label for="endpoint">Endereço base do bridge</label><input id="endpoint" inputmode="url" autocomplete="url" placeholder="https://192.168.1.20:8765">
+<label for="token">Token de acesso</label><input id="token" type="password" autocomplete="off" placeholder="Token local de 32+ caracteres">
+<button id="connect">Conectar e ler status</button><button class="secondary" id="refresh" hidden>Atualizar status</button><p id="message" role="status">O painel não armazena o token. Evite usar em aparelhos compartilhados.</p></section>
+<section><h2>Telemetria do PC</h2><div class="grid">
+<div class="metric"><span>CPU</span><b id="cpu">—</b></div><div class="metric"><span>Memória</span><b id="ram">—</b></div><div class="metric"><span>Disco</span><b id="disk">—</b></div>
+</div><p id="system" class="notice">Conecte ao bridge para carregar as métricas.</p></section>
+<section><h2>Segurança e recursos</h2><p class="notice">Esta versão permite apenas consultar telemetria. Controle do mouse/teclado, streaming de tela, execução de comandos e automação remota estão desativados nesta etapa.</p></section>
+<script>
+const el=id=>document.getElementById(id);
+async function connect(){
+ const base=el('endpoint').value.trim().replace(/\/+$/,''); const token=el('token').value.trim();
+ if(!base||!token){el('message').textContent='Preencha o endereço e o token.';el('message').className='bad';return;}
+ if(!base.startsWith('https://')&&!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(base)){el('message').textContent='Use HTTPS para conexão pela rede. HTTP só é permitido em localhost.';el('message').className='bad';return;}
+ el('state').textContent='CONECTANDO…';el('message').textContent='Consultando o PC…';el('message').className='';
+ try{
+  const res=await fetch(base+'/api/status',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+  if(!res.ok)throw new Error(res.status===401?'Token recusado (401).':'HTTP '+res.status);
+  const d=await res.json();el('cpu').textContent=d.cpu_percent==null?'N/D':d.cpu_percent+'%';
+  el('ram').textContent=d.memory?d.memory.percent_used+'%':'N/D';el('disk').textContent=d.disk?d.disk.percent_used+'%':'N/D';
+  el('system').textContent=d.platform+' • atualização '+new Date(d.timestamp*1000).toLocaleTimeString();
+  el('message').textContent='Conectado. Somente leitura; nenhum comando foi executado.';el('message').className='good';el('state').textContent='CONECTADO';el('refresh').hidden=false;
+ }catch(e){el('state').textContent='ERRO';el('message').textContent='Falha: '+e.message+'\nVerifique URL, token, certificado HTTPS e VPN/Wi-Fi.';el('message').className='bad';}
+}
+el('connect').addEventListener('click',connect);el('refresh').addEventListener('click',connect);
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script></main></body></html>
