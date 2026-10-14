@@ -4,9 +4,22 @@ import unittest
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from blackcore_core.mobile_bridge import create_server, make_handler, collect_status
+from blackcore_core.mobile_bridge import create_server, collect_status
+
 
 class MobileBridgeSafetyTests(unittest.TestCase):
+    def setUp(self):
+        self.token = "S" * 40
+        self.server = create_server("127.0.0.1", 0, self.token)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+        self.base = "http://127.0.0.1:%d" % self.server.server_port
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=2)
+
     def test_short_token_rejected(self):
         with self.assertRaisesRegex(ValueError, "32 characters"):
             create_server("127.0.0.1", 0, "short")
@@ -15,59 +28,55 @@ class MobileBridgeSafetyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "requires TLS"):
             create_server("0.0.0.0", 0, "x" * 40)
 
-    def test_http_methods_are_read_only(self):
-        handler = make_handler("x" * 40)
-        self.assertTrue(callable(handler.do_POST))
-        self.assertTrue(callable(handler.do_PUT))
-        self.assertTrue(callable(handler.do_DELETE))
-
-    def test_capabilities_are_explicitly_disabled(self):
+    def test_capabilities_explicitly_disable_remote_actions(self):
         caps = collect_status()["capabilities"]
         self.assertTrue(caps["telemetry"])
-        self.assertFalse(caps["remote_control"])
-        self.assertFalse(caps["arbitrary_commands"])
-        self.assertFalse(caps["screen_streaming"])
+        for disabled in ("remote_control", "arbitrary_commands", "screen_streaming",
+                         "file_access", "plugin_execution"):
+            self.assertFalse(caps[disabled], disabled)
 
-    def test_panel_served_from_same_origin(self):
-        server = create_server("127.0.0.1", 0, "T" * 40)
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        try:
-            with urlopen("http://127.0.0.1:%d/" % server.server_port, timeout=3) as response:
+    def test_mobile_panel_and_assets_same_origin_with_strict_csp(self):
+        for path, expected in (("/", "BLACKCORE"), ("/style.css", "--green"),
+                               ("/app.js", "read-only"), ("/manifest.webmanifest", "BLACKCORE")):
+            with urlopen(self.base + path, timeout=3) as response:
                 body = response.read().decode()
                 self.assertEqual(response.status, 200)
-                self.assertIn("BLACKCORE", body)
-                self.assertIn("Content-Security-Policy", response.headers)
-            with urlopen("http://127.0.0.1:%d/manifest.webmanifest" % server.server_port, timeout=3) as response:
-                self.assertEqual(response.status, 200)
-                self.assertIn("manifest+json", response.headers.get("Content-Type", ""))
-        finally:
-            server.shutdown()
-            server.server_close()
-            thread.join(timeout=2)
+                self.assertIn(expected, body)
+                if path == "/":
+                    csp = response.headers.get("Content-Security-Policy", "")
+                    self.assertIn("script-src 'self'", csp)
+                    self.assertNotIn("'unsafe-inline'", csp)
+                    self.assertIn("X-Frame-Options", response.headers)
+                self.assertIn("X-Content-Type-Options", response.headers)
 
-    def test_status_requires_valid_bearer_token(self):
-        server = create_server("127.0.0.1", 0, "S" * 40)
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        base = "http://127.0.0.1:%d" % server.server_port
-        try:
-            with self.assertRaises(HTTPError) as raised:
-                urlopen(base + "/api/status", timeout=3)
-            self.assertEqual(raised.exception.code, 401)
-            request = Request(base + "/api/status", headers={"Authorization": "Bearer " + "S" * 40})
-            with urlopen(request, timeout=3) as response:
-                data = json.loads(response.read())
-                self.assertEqual(response.status, 200)
-                self.assertFalse(data["capabilities"]["remote_control"])
-            request = Request(base + "/api/status", method="POST")
+    def test_status_requires_bearer_token_and_is_read_only(self):
+        with self.assertRaises(HTTPError) as raised:
+            urlopen(self.base + "/api/status", timeout=3)
+        self.assertEqual(raised.exception.code, 401)
+        request = Request(self.base + "/api/status", headers={"Authorization": "Bearer " + self.token})
+        with urlopen(request, timeout=3) as response:
+            data = json.loads(response.read())
+            self.assertEqual(response.status, 200)
+            self.assertFalse(data["capabilities"]["remote_control"])
+            self.assertIn("bridge_uptime_seconds", data)
+            self.assertIn("cpu_count", data)
+            self.assertIn("network", data)
+        for method in ("POST", "PUT", "PATCH", "DELETE", "OPTIONS"):
+            request = Request(self.base + "/api/status", method=method)
             with self.assertRaises(HTTPError) as denied:
                 urlopen(request, timeout=3)
             self.assertEqual(denied.exception.code, 405)
-        finally:
-            server.shutdown()
-            server.server_close()
-            thread.join(timeout=2)
+
+    def test_unknown_path_does_not_serve_files(self):
+        with self.assertRaises(HTTPError) as raised:
+            urlopen(self.base + "/../../README.md", timeout=3)
+        self.assertEqual(raised.exception.code, 404)
+
+    def test_health_does_not_expose_sensitive_data(self):
+        with urlopen(self.base + "/api/health", timeout=3) as response:
+            data = json.loads(response.read())
+        self.assertEqual(data, {"ok": True, "auth_required": True, "mode": "read_only"})
+
 
 if __name__ == "__main__":
     unittest.main()
