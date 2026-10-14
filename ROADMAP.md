@@ -2,6 +2,14 @@
 
 Este documento distingue recursos implementados, protótipos e trabalho futuro. Testes automatizados não substituem testes no PC real.
 
+## Etapa Mobile — primeira versão implementada, controle remoto ainda futuro
+- Implementado: PWA responsiva servida pelo bridge na mesma origem, com CSS/JS separados, CSP estrita, cache offline só da interface e API sem cache.
+- Implementado: app Android Kotlin/Compose com validação HTTPS, token em memória, consulta de telemetria e botão de desconexão/limpeza.
+- Implementado: bridge autenticado, TLS obrigatório para bind na rede, métricas opcionais de CPU/RAM/disco/rede/uptime/processos/bateria e endpoints somente leitura.
+- Implementado: CI para sintaxe JavaScript, testes Python e build de APK debug como artefato quando o job passa.
+- Limite: o celular não pode iniciar ou instalar silenciosamente um processo no Windows. É obrigatório executar um bridge/serviço autorizado no PC. Acesso Wi-Fi exige certificado confiável; acesso externo deve usar VPN privada. Ainda não existe controle de tela, mouse/teclado, arquivos ou comandos.
+- Refatoração de segurança: 15 áreas revistas — assets separados, CSP, allowlist de rotas, bloqueio de traversal, validação de URL, timeout/cancelamento, erros por status, tokens não persistidos, cache API desativado, cache PWA versionado, métodos mutáveis bloqueados, TLS em rede e degradação de métricas opcionais.
+
 ## Etapa 1 — base local
 - Implementado: aplicação Tkinter existente, launcher, registro de eventos e confirmação antes das ações locais sensíveis.
 - Implementado: módulos para métricas somente leitura, autorização, backups e validação de manifestos.
