@@ -1,19 +1,25 @@
 package com.blackcore.mobile
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -36,7 +42,29 @@ private fun MobileScreen() {
     var result by remember { mutableStateOf("Desconectado. O app consulta apenas telemetria.") }
     var busy by remember { mutableStateOf(false) }
     var connected by remember { mutableStateOf(false) }
+    var autoRefresh by remember { mutableStateOf(false) }
+    var remoteConsent by remember { mutableStateOf(false) }
+    var remoteMessage by remember { mutableStateOf("Controle remoto desligado até ser habilitado no PC.") }
+    var screenBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var mouseX by remember { mutableStateOf("500") }
+    var mouseY by remember { mutableStateOf("400") }
+    var remoteText by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(connected, autoRefresh, endpoint, token) {
+        if (connected && autoRefresh) {
+            while (isActive) {
+                delay(15000)
+                try {
+                    result = fetchStatus(endpoint.trim().trimEnd('/'), token.trim())
+                } catch (e: Exception) {
+                    connected = false
+                    result = "Atualização automática falhou: " + (e.message ?: "erro desconhecido")
+                    break
+                }
+            }
+        }
+    }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
@@ -88,12 +116,80 @@ private fun MobileScreen() {
                 Text(if (busy) "Conectando…" else if (connected) "Atualizar telemetria" else "Conectar ao PC")
             }
             if (connected) {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Checkbox(checked = autoRefresh, onCheckedChange = { autoRefresh = it })
+                    Text("Atualizar telemetria automaticamente (15 s)")
+                }
                 OutlinedButton(onClick = {
                     token = ""
-                    result = "Desconectado. O token foi removido desta tela."
                     connected = false
+                    autoRefresh = false
+                    remoteConsent = false
+                    screenBitmap = null
+                    result = "Desconectado. O token foi removido desta tela."
                 }, modifier = Modifier.fillMaxWidth()) { Text("Desconectar e apagar token") }
             }
+            HorizontalDivider()
+            Text("CONTROLE REMOTO OPCIONAL", style = MaterialTheme.typography.titleMedium)
+            Text("Requer bridge Windows com --enable-remote-control, HTTPS confiável e pyautogui instalado. A captura é uma imagem estática, não vídeo.", style = MaterialTheme.typography.bodySmall)
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Checkbox(checked = remoteConsent, onCheckedChange = { remoteConsent = it })
+                Text("Autorizo controlar este PC nesta sessão")
+            }
+            OutlinedButton(onClick = {
+                if (!remoteConsent || !connected) {
+                    remoteMessage = "Conecte e marque a autorização antes de solicitar a tela."
+                } else {
+                    scope.launch {
+                        remoteMessage = try {
+                            screenBitmap = fetchScreen(endpoint.trim().trimEnd('/'), token.trim())
+                            "Captura recebida. A imagem não é vídeo ao vivo."
+                        } catch (e: Exception) {
+                            "Falha na captura: " + (e.message ?: "erro desconhecido")
+                        }
+                    }
+                }
+            }, enabled = connected && !busy, modifier = Modifier.fillMaxWidth()) { Text("Capturar tela do PC") }
+            screenBitmap?.let { bitmap ->
+                Image(bitmap = bitmap.asImageBitmap(), contentDescription = "Captura estática da tela do PC",
+                    modifier = Modifier.fillMaxWidth())
+            }
+            OutlinedTextField(value = mouseX, onValueChange = { mouseX = it.take(6).filter(Char::isDigit) },
+                label = { Text("Coordenada X") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(value = mouseY, onValueChange = { mouseY = it.take(6).filter(Char::isDigit) },
+                label = { Text("Coordenada Y") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedButton(onClick = {
+                sendRemoteAction(remoteConsent, connected, endpoint, token, JSONObject()
+                    .put("action", "move").put("x", mouseX.toIntOrNull() ?: -1).put("y", mouseY.toIntOrNull() ?: -1),
+                    scope, { remoteMessage = it })
+            }, modifier = Modifier.fillMaxWidth()) { Text("Mover mouse") }
+            OutlinedButton(onClick = {
+                sendRemoteAction(remoteConsent, connected, endpoint, token, JSONObject()
+                    .put("action", "click").put("button", "left")
+                    .put("x", mouseX.toIntOrNull() ?: -1).put("y", mouseY.toIntOrNull() ?: -1),
+                    scope, { remoteMessage = it })
+            }, modifier = Modifier.fillMaxWidth()) { Text("Clique esquerdo") }
+            OutlinedTextField(value = remoteText, onValueChange = { remoteText = it.take(300) },
+                label = { Text("Texto a digitar (máx. 300)") }, modifier = Modifier.fillMaxWidth())
+            OutlinedButton(onClick = {
+                if (remoteText.isBlank()) remoteMessage = "Informe um texto antes de enviar."
+                else sendRemoteAction(remoteConsent, connected, endpoint, token,
+                    JSONObject().put("action", "type").put("text", remoteText),
+                    scope, { remoteMessage = it })
+            }, modifier = Modifier.fillMaxWidth()) { Text("Digitar texto") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = {
+                    sendRemoteAction(remoteConsent, connected, endpoint, token,
+                        JSONObject().put("action", "key").put("key", "enter"),
+                        scope, { remoteMessage = it })
+                }, modifier = Modifier.weight(1f)) { Text("Enter") }
+                OutlinedButton(onClick = {
+                    sendRemoteAction(remoteConsent, connected, endpoint, token,
+                        JSONObject().put("action", "key").put("key", "esc"),
+                        scope, { remoteMessage = it })
+                }, modifier = Modifier.weight(1f)) { Text("Esc") }
+            }
+            Text(remoteMessage, style = MaterialTheme.typography.bodySmall)
             HorizontalDivider()
             Text("STATUS DO PC", style = MaterialTheme.typography.titleMedium)
             Text(result, style = MaterialTheme.typography.bodyMedium)
@@ -102,6 +198,82 @@ private fun MobileScreen() {
                 style = MaterialTheme.typography.bodySmall
             )
         }
+    }
+}
+
+private fun sendRemoteAction(
+    consent: Boolean,
+    connected: Boolean,
+    endpoint: String,
+    token: String,
+    payload: JSONObject,
+    scope: kotlinx.coroutines.CoroutineScope,
+    report: (String) -> Unit
+) {
+    if (!consent || !connected) {
+        report("Conecte ao PC e marque a autorização antes de enviar ações.")
+        return
+    }
+    if (!endpoint.trim().startsWith("https://") || token.trim().length < 32) {
+        report("O controle remoto exige HTTPS e token válido.")
+        return
+    }
+    scope.launch {
+        report("Enviando ação autorizada…")
+        try {
+            report(postRemoteAction(endpoint.trim().trimEnd('/'), token.trim(), payload))
+        } catch (e: Exception) {
+            report("Ação recusada ou falhou: " + (e.message ?: "erro desconhecido"))
+        }
+    }
+}
+
+private suspend fun postRemoteAction(base: String, token: String, payload: JSONObject): String = withContext(Dispatchers.IO) {
+    val connection = URL("$base/api/control").openConnection() as HttpURLConnection
+    try {
+        connection.requestMethod = "POST"
+        connection.connectTimeout = 7000
+        connection.readTimeout = 7000
+        connection.instanceFollowRedirects = false
+        connection.doOutput = true
+        connection.setRequestProperty("Authorization", "Bearer $token")
+        connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+        connection.setRequestProperty("X-Blackcore-Confirm", "YES")
+        val bytes = payload.toString().toByteArray(Charsets.UTF_8)
+        connection.outputStream.use { it.write(bytes) }
+        val code = connection.responseCode
+        val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+        val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+        if (code !in 200..299) {
+            val reason = runCatching { JSONObject(body).optString("error") }.getOrDefault("HTTP $code")
+            throw IllegalStateException("$reason (HTTP $code)")
+        }
+        "Ação enviada: " + payload.optString("action")
+    } finally {
+        connection.disconnect()
+    }
+}
+
+private suspend fun fetchScreen(base: String, token: String): Bitmap = withContext(Dispatchers.IO) {
+    val connection = URL("$base/api/screen.jpg").openConnection() as HttpURLConnection
+    try {
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 7000
+        connection.readTimeout = 7000
+        connection.instanceFollowRedirects = false
+        connection.setRequestProperty("Authorization", "Bearer $token")
+        connection.setRequestProperty("Accept", "image/jpeg")
+        val code = connection.responseCode
+        if (code !in 200..299) {
+            val body = connection.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            val reason = runCatching { JSONObject(body).optString("error") }.getOrDefault("HTTP $code")
+            throw IllegalStateException("$reason (HTTP $code)")
+        }
+        connection.inputStream.use { input ->
+            BitmapFactory.decodeStream(input) ?: throw IllegalStateException("Imagem de tela inválida.")
+        }
+    } finally {
+        connection.disconnect()
     }
 }
 
